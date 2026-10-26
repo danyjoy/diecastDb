@@ -271,6 +271,8 @@
     background: var(--bg);
     border-bottom: 1px solid var(--border);
   }
+  /* Inside Telegram the native BackButton handles back, so hide our bar. */
+  body.in-telegram .dbar { display: none; }
   .backbtn {
     display: inline-flex; align-items: center; gap: 6px;
     background: var(--card); border: 1px solid var(--border);
@@ -392,6 +394,11 @@
 
   var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
+  // Detect a genuine Telegram Mini App launch. The SDK script loads in any
+  // browser, so window.Telegram always exists — but initData is only populated
+  // when actually opened inside Telegram. We use that as the real signal.
+  var inTelegram = !!(tg && tg.initData && tg.initData.length > 0);
+
   // Always dark — we do NOT follow Telegram's colour scheme (it could be light
   // and wash out the gallery). We only push the dark colour to Telegram's own
   // chrome so the header/background match, even on a light client.
@@ -401,6 +408,10 @@
     try { tg.setHeaderColor && tg.setHeaderColor("#000000"); } catch (e) {}
     try { tg.setBackgroundColor && tg.setBackgroundColor("#000000"); } catch (e) {}
   }
+
+  // Inside Telegram, its native BackButton handles going back, so hide the
+  // in-page Back bar to avoid two back buttons.
+  if (inTelegram) document.body.classList.add("in-telegram");
 
   var CARS = [];
   var activeSeries = null;   // null = all
