@@ -201,6 +201,8 @@
   .card.th { background: var(--silver-bg); border-color: var(--silver); }
   .card.sth { background: var(--gold-bg); border-color: var(--gold); }
   .card.chase { background: var(--chase-bg); border-color: var(--chase); }
+  /* Soft chase (silver series): a subtle silver outline, lighter than TH. */
+  .card.softchase { border-color: var(--silver); }
 
   .thumb {
     position: relative;
@@ -225,6 +227,7 @@
   .badge.th { background: var(--silver); color: #16181d; }
   .badge.sth { background: var(--gold); color: #1a1500; }
   .badge.chase { background: var(--chase); color: #1a1500; }
+  .badge.soft { background: var(--silver); color: #16181d; }
 
   .cardbody { padding: 9px 10px 11px; }
   .cardbody .title {
@@ -387,11 +390,42 @@
   var curYear = null;        // selected year (string)
   var curAssort = null;      // selected assortment key (string)
   var GROUP_FIELD = "series_name"; // which car field the "Series" filter groups by
+  var SOFT_CHASE_ON = false;       // collection has soft chases (Silver Series)
+  var SOFT_CHASE = {};             // set of car ids that are soft chases
 
   // The series/grouping value for a car, per the current collection's group_by
   // (mainline → series_name; premium → assortment sub-line).
   function seriesOf(car) {
     return (car[GROUP_FIELD] || "").toString().trim();
+  }
+
+  function isMetalBase(car) {
+    return String(car.base_material || "").toLowerCase() === "metal";
+  }
+
+  function isSoftChase(car) {
+    return SOFT_CHASE_ON && !!SOFT_CHASE[car.id];
+  }
+
+  // Soft chase = the metal-base car within a real series. A "real series" is
+  // keyed by (assortment + series_name) — e.g. Fast & Furious has two 5-car
+  // series, "Nitro Grid" and "Life", each with its own soft chase. We only mark
+  // it when a series has EXACTLY ONE metal-base car, so themed/multi-sets that
+  // mix several metal cars don't get mislabelled.
+  function computeSoftChase() {
+    SOFT_CHASE = {};
+    if (!SOFT_CHASE_ON) return;
+    var groups = {};
+    for (var i = 0; i < CARS.length; i++) {
+      var c = CARS[i];
+      var key = (c.assortment || "") + " :: " + (c.series_name || "");
+      (groups[key] = groups[key] || []).push(c);
+    }
+    for (var k in groups) {
+      if (!groups.hasOwnProperty(k)) continue;
+      var metal = groups[k].filter(isMetalBase);
+      if (metal.length === 1) SOFT_CHASE[metal[0].id] = true;
+    }
   }
 
   var $title = document.getElementById("title");
@@ -431,8 +465,9 @@
 
   function matches(car) {
     if (activeSeries && seriesOf(car) !== activeSeries) return false;
-    // rarityFilter is null (all), "th" (Treasure Hunt only), or "sth" (Super TH only).
-    if (rarityFilter && rarityClass(car.rarity) !== rarityFilter) return false;
+    // rarityFilter: null (all), "th"/"sth"/"chase" (rarity), or "soft" (soft chase).
+    if (rarityFilter === "soft") { if (!isSoftChase(car)) return false; }
+    else if (rarityFilter && rarityClass(car.rarity) !== rarityFilter) return false;
     if (queryText) {
       var hay = [car.title, car.series_name, car.assortment, car.sku, car.casting_number,
                  car.oem, car.rarity, car.body_color, car.mainline_index]
@@ -472,14 +507,22 @@
       // or the collection label otherwise. Falls back to the collection label
       // when a premium car has no sub-line.
       var lineTag = (c.assortment || "").trim() || labelFor(curAssort);
+      var soft = isSoftChase(c);
+      // Soft chase (silver series) → a silver "Soft Chase" tag + card highlight.
+      // Any other metal-base car just gets an informational "Metal base" tag.
+      var metaTag = soft
+        ? '<span class="tag silver">Soft Chase</span>'
+        : (isMetalBase(c) ? '<span class="tag">Metal base</span>' : "");
+      var softBadge = (soft && !badge) ? '<span class="badge soft">SOFT</span>' : "";
       var tags =
         idxTag +
         '<span class="tag">' + esc(c.release_year) + '</span>' +
         '<span class="tag">' + esc(lineTag) + '</span>' +
-        rarityTag;
+        rarityTag + metaTag;
+      var cls = rc ? (" " + rc) : (soft ? " softchase" : "");
       html +=
-        '<div class="card' + (rc ? ' ' + rc : '') + '" data-id="' + esc(c.id) + '">' +
-          '<div class="thumb">' + badge +
+        '<div class="card' + cls + '" data-id="' + esc(c.id) + '">' +
+          '<div class="thumb">' + badge + softBadge +
             (thumb ? '<img loading="lazy" src="' + esc(thumb) + '" alt="">' : "") +
           '</div>' +
           '<div class="cardbody">' +
@@ -530,9 +573,16 @@
                           '" data-kind="sth">⭐ Super TH (' + sthCount + ")</div>";
     if (thCount) html += '<div class="chip th' + (rarityFilter === "th" ? " active" : "") +
                          '" data-kind="th">Treasure Hunt (' + thCount + ")</div>";
-    // Chase (premium only) — violet highlight, between the hunts and series.
+    // Chase (premium only) — gold highlight, between the hunts and series.
     if (chaseCount) html += '<div class="chip chase' + (rarityFilter === "chase" ? " active" : "") +
                             '" data-kind="chase">Chase (' + chaseCount + ")</div>";
+    // Soft Chase (silver series) — the metal-base car in each series.
+    if (SOFT_CHASE_ON) {
+      var softCount = 0;
+      for (var sc = 0; sc < CARS.length; sc++) if (isSoftChase(CARS[sc])) softCount++;
+      if (softCount) html += '<div class="chip th' + (rarityFilter === "soft" ? " active" : "") +
+                             '" data-kind="soft">Soft Chase (' + softCount + ")</div>";
+    }
 
     // Series picker pill — only when this collection actually has series
     // (e.g. Mainline). Assortments without series (Boulevard) skip it.
@@ -662,6 +712,7 @@
       "<h2>" + esc(car.title) + "</h2>" +
       (subParts.length ? '<div class="sub">' + subParts.join(" · ") + "</div>" : "") +
       (rc ? '<div class="rarity ' + rc + '">' + esc(car.rarity) + "</div>" : "") +
+      (isSoftChase(car) ? '<div class="rarity th">Soft Chase</div>' : "") +
       row("Series", car.series_name) +
       row("Series #", car.series_index) +
       row("SKU", car.sku) +
@@ -724,6 +775,7 @@
     else if (kind === "th") { rarityFilter = (rarityFilter === "th" ? null : "th"); activeSeries = null; }
     else if (kind === "sth") { rarityFilter = (rarityFilter === "sth" ? null : "sth"); activeSeries = null; }
     else if (kind === "chase") { rarityFilter = (rarityFilter === "chase" ? null : "chase"); activeSeries = null; }
+    else if (kind === "soft") { rarityFilter = (rarityFilter === "soft" ? null : "soft"); activeSeries = null; }
     else if (kind === "series-open") { openSeriesSheet(); return; }
     renderFilters();
     render();
@@ -820,6 +872,7 @@
     // Which field this collection groups its "Series" filter by.
     var entry = assortmentEntry(assortKey);
     GROUP_FIELD = (entry && entry.group_by) || "series_name";
+    SOFT_CHASE_ON = !!(entry && entry.soft_chase);
 
     renderAssortMenu();
     renderTitle();
@@ -834,6 +887,7 @@
           if (isNaN(ai)) ai = 1e9; if (isNaN(bi)) bi = 1e9;
           return ai - bi;
         });
+        computeSoftChase();
         buildSeriesChips();
         render();
       })
