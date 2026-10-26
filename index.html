@@ -8,6 +8,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root {
+    /* Dark is the default theme (matches the reference UI). */
     --bg: #000000;
     --bg2: #0c0d10;
     --text: #ffffff;
@@ -18,6 +19,20 @@
     --border: #22252d;
     --gold: #e9b949;
     --gold-bg: #2a2410;
+  }
+  /* Light theme — applied only when Telegram reports colorScheme === "light".
+     Product shots still sit on white; cards get a light surface. */
+  body.light {
+    --bg: #ffffff;
+    --bg2: #f2f3f5;
+    --text: #0c0d10;
+    --hint: #6b7178;
+    --card: #f4f5f7;
+    --card2: #e9ebee;
+    --accent: #2f8fff;
+    --border: #e2e4e8;
+    --gold: #b8860b;
+    --gold-bg: #fbf3d8;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; height: 100%; }
@@ -237,14 +252,24 @@
 
   var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
-  // Fixed dark theme to match the reference UI — we intentionally do NOT adopt
-  // Telegram's theme params (which could be light). We only ask Telegram to
-  // render its own chrome dark so the app blends in.
+  // Dark by default (matches the reference UI). When running inside Telegram we
+  // follow its colour scheme: light mode flips to the light palette, otherwise
+  // we stay dark. Outside Telegram (plain browser) tg is null, so it's dark.
+  function applyScheme() {
+    var light = !!(tg && tg.colorScheme === "light");
+    document.body.classList.toggle("light", light);
+    var bg = light ? "#ffffff" : "#000000";
+    try { tg && tg.setHeaderColor && tg.setHeaderColor(bg); } catch (e) {}
+    try { tg && tg.setBackgroundColor && tg.setBackgroundColor(bg); } catch (e) {}
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", bg);
+  }
+
   if (tg) {
     tg.ready();
     tg.expand();
-    try { tg.setHeaderColor && tg.setHeaderColor("#000000"); } catch (e) {}
-    try { tg.setBackgroundColor && tg.setBackgroundColor("#000000"); } catch (e) {}
+    applyScheme();
+    tg.onEvent("themeChanged", applyScheme);
   }
 
   var CARS = [];
