@@ -6,12 +6,14 @@
     {
       "key": "mainline",
       "label": "Mainline",
+      "group_by": "series_name",
       "years": ["2026"]
     },
     {
-      "key": "boulevard",
-      "label": "Boulevard",
-      "years": ["2026", "2025", "2024", "2023", "2022", "2021", "2020", "2013", "2012"]
+      "key": "premium",
+      "label": "Premium",
+      "group_by": "assortment",
+      "years": ["2027", "2026", "2025", "2024", "2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014", "2013", "2012"]
     }
   ]
 }

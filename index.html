@@ -374,6 +374,13 @@
   var MANIFEST = null;       // data/index.json
   var curYear = null;        // selected year (string)
   var curAssort = null;      // selected assortment key (string)
+  var GROUP_FIELD = "series_name"; // which car field the "Series" filter groups by
+
+  // The series/grouping value for a car, per the current collection's group_by
+  // (mainline → series_name; premium → assortment sub-line).
+  function seriesOf(car) {
+    return (car[GROUP_FIELD] || "").toString().trim();
+  }
 
   var $title = document.getElementById("title");
   var $search = document.getElementById("search");
@@ -410,11 +417,11 @@
   }
 
   function matches(car) {
-    if (activeSeries && car.series_name !== activeSeries) return false;
+    if (activeSeries && seriesOf(car) !== activeSeries) return false;
     // rarityFilter is null (all), "th" (Treasure Hunt only), or "sth" (Super TH only).
     if (rarityFilter && rarityClass(car.rarity) !== rarityFilter) return false;
     if (queryText) {
-      var hay = [car.title, car.series_name, car.sku, car.casting_number,
+      var hay = [car.title, car.series_name, car.assortment, car.sku, car.casting_number,
                  car.oem, car.rarity, car.body_color, car.mainline_index]
                  .join(" ").toLowerCase();
       var terms = queryText.toLowerCase().split(/\s+/).filter(Boolean);
@@ -442,10 +449,18 @@
       var rarityTag = rc === "sth"
         ? '<span class="tag gold">Super TH</span>'
         : rc === "th" ? '<span class="tag silver">Treasure Hunt</span>' : "";
+      // Collector number: mainlines use mainline_index, premium lines use
+      // series_index. Only show the tag when there's an actual number.
+      var idx = c.mainline_index || c.series_index || "";
+      var idxTag = idx ? '<span class="tag">#' + esc(idx) + "</span>" : "";
+      // Third tag: the car's sub-line (Car Culture, Boulevard, …) for premium,
+      // or the collection label otherwise. Falls back to the collection label
+      // when a premium car has no sub-line.
+      var lineTag = (c.assortment || "").trim() || labelFor(curAssort);
       var tags =
-        '<span class="tag">#' + esc(c.mainline_index) + '</span>' +
+        idxTag +
         '<span class="tag">' + esc(c.release_year) + '</span>' +
-        '<span class="tag">' + esc(c.assortment || "Mainline") + '</span>' +
+        '<span class="tag">' + esc(lineTag) + '</span>' +
         rarityTag;
       html +=
         '<div class="card' + (rc ? ' ' + rc : '') + '" data-id="' + esc(c.id) + '">' +
@@ -465,9 +480,12 @@
   var SERIES = [];
 
   function buildSeriesChips() {
+    // Only count cars that actually name a series. Assortments like Boulevard
+    // have no series, so SERIES stays empty and the Series filter is hidden.
     var counts = {};
     for (var i = 0; i < CARS.length; i++) {
-      var s = CARS[i].series_name || "Unknown";
+      var s = seriesOf(CARS[i]);
+      if (!s) continue;
       counts[s] = (counts[s] || 0) + 1;
     }
     SERIES = Object.keys(counts)
@@ -496,16 +514,19 @@
     if (thCount) html += '<div class="chip th' + (rarityFilter === "th" ? " active" : "") +
                          '" data-kind="th">Treasure Hunt (' + thCount + ")</div>";
 
-    // Series picker pill (shows the chosen series + a clear button when active).
-    if (activeSeries) {
-      html += '<div class="chip series-pick active" data-kind="series-open">' +
-                esc(activeSeries) +
-                '<span class="clear" data-kind="series-clear">✕</span>' +
-              '</div>';
-    } else {
-      html += '<div class="chip series-pick" data-kind="series-open">' +
-                'Series <span class="caret">▾</span>' +
-              '</div>';
+    // Series picker pill — only when this collection actually has series
+    // (e.g. Mainline). Assortments without series (Boulevard) skip it.
+    if (SERIES.length) {
+      if (activeSeries) {
+        html += '<div class="chip series-pick active" data-kind="series-open">' +
+                  esc(activeSeries) +
+                  '<span class="clear" data-kind="series-clear">✕</span>' +
+                '</div>';
+      } else {
+        html += '<div class="chip series-pick" data-kind="series-open">' +
+                  'Series <span class="caret">▾</span>' +
+                '</div>';
+      }
     }
 
     $filters.innerHTML = html;
@@ -611,10 +632,17 @@
       return '<div class="spec"><span class="k">' + esc(k) + '</span><span class="v">' + esc(v) + "</span></div>";
     }
     var rc = rarityClass(car.rarity);
+    // Subhead: "#<index> · <series>", omitting the # when there's no index.
+    var dIdx = car.mainline_index || car.series_index || "";
+    var dSeries = seriesOf(car);
+    var subParts = [];
+    if (dIdx) subParts.push("#" + esc(dIdx));
+    if (dSeries) subParts.push(esc(dSeries));
     $info.innerHTML =
       "<h2>" + esc(car.title) + "</h2>" +
-      '<div class="sub">#' + esc(car.mainline_index) + " · " + esc(car.series_name) + "</div>" +
+      (subParts.length ? '<div class="sub">' + subParts.join(" · ") + "</div>" : "") +
       (rc ? '<div class="rarity ' + rc + '">' + esc(car.rarity) + "</div>" : "") +
+      row("Series", car.series_name) +
       row("Series #", car.series_index) +
       row("SKU", car.sku) +
       row("Casting #", car.casting_number) +
@@ -767,6 +795,10 @@
     curAssort = assortKey;
     curYear = String(year);
     activeSeries = null; rarityFilter = null;
+
+    // Which field this collection groups its "Series" filter by.
+    var entry = assortmentEntry(assortKey);
+    GROUP_FIELD = (entry && entry.group_by) || "series_name";
 
     renderAssortMenu();
     renderTitle();
