@@ -41,8 +41,8 @@ selection. It opens on the default assortment and the **current calendar year**
   "default": { "assortment": "mainline" },
   "file_pattern": "{year}/{assortment}.json",
   "assortments": [
-    { "key": "mainline",  "label": "Mainline",  "years": ["2026"] },
-    { "key": "boulevard", "label": "Boulevard", "years": ["2026", "2025", "2024", "2023", "2022", "2021", "2020", "2013", "2012"] }
+    { "key": "mainline", "label": "Mainline", "group_by": "series_name", "years": ["2026"] },
+    { "key": "premium",  "label": "Premium",  "group_by": "assortment",  "years": ["2027", "2026", "2025", "2024", "2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014", "2013", "2012"] }
   ]
 }
 ```
@@ -50,10 +50,16 @@ selection. It opens on the default assortment and the **current calendar year**
 - `default.assortment` — which assortment opens first.
 - `assortments[].key` — internal id; also the file name (`<key>.json`).
 - `assortments[].label` — the menu/header text.
+- `assortments[].group_by` — which car field the **Series** filter groups by.
+  Mainline uses `series_name`; Premium uses `assortment` (its sub-line — Car
+  Culture, Boulevard, Pop Culture, …). Defaults to `series_name`.
 - `assortments[].years` — the years this assortment has files for (any order;
   the app sorts newest-first). The current year is used as the default when
   present.
 - `file_pattern` — optional; defaults to `{year}/{assortment}.json`.
+
+> Boulevard is a sub-line of Premium, so it isn't a separate assortment — it
+> appears as a Series option inside Premium.
 
 ## Adding a new collection (year or assortment)
 
