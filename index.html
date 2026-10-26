@@ -299,7 +299,20 @@
   .gallery img.sel { border-color: var(--accent); }
 
   .info { padding: 16px 16px 40px; }
-  .info h2 { margin: 2px 0 4px; font-size: 22px; font-weight: 800; text-transform: uppercase; }
+  .info h2 {
+    margin: 2px 0 4px; font-size: 22px; font-weight: 800; text-transform: uppercase;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .info h2 .ttl { flex: 1; min-width: 0; }
+  .copybtn {
+    flex: 0 0 auto; margin-top: 2px;
+    width: 34px; height: 34px; border-radius: 9px;
+    background: var(--card2); border: 1px solid var(--border);
+    color: var(--text); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .copybtn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; }
+  .copybtn.copied { background: var(--accent); border-color: var(--accent); color: #fff; }
   .info .sub { color: var(--accent); font-weight: 700; margin-bottom: 4px; }
   .info .rarity { display: inline-block; margin: 8px 0 4px; font-weight: 700; font-size: 12px;
     padding: 4px 10px; border-radius: 8px; }
@@ -474,6 +487,40 @@
   function esc(s) {
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // Copy text to the clipboard. The Clipboard API is flaky inside Telegram's
+  // in-app browser, so fall back to a hidden textarea + execCommand. Shows a
+  // brief "copied" state on the button and a light haptic tap when available.
+  function copyText(text, btn) {
+    function done() {
+      if (tg && tg.HapticFeedback) { try { tg.HapticFeedback.notificationOccurred("success"); } catch (e) {} }
+      if (btn) {
+        btn.classList.add("copied");
+        setTimeout(function () { btn.classList.remove("copied"); }, 1200);
+      }
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
+        return;
+      }
+    } catch (e) {}
+    fallbackCopy(text);
+    done();
+  }
+  function fallbackCopy(text) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "absolute";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    } catch (e) {}
   }
 
   function rarityClass(r) {
@@ -826,7 +873,12 @@
       row("Made in", car.country_of_origin);
 
     $info.innerHTML =
-      "<h2>" + esc(car.title) + "</h2>" +
+      '<h2><span class="ttl">' + esc(car.title) + "</span>" +
+        '<button class="copybtn" type="button" data-copy="' + esc(car.title) +
+        '" title="Copy name" aria-label="Copy name">' +
+          '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/>' +
+          '<path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>' +
+        "</button></h2>" +
       (subParts.length ? '<div class="sub">' + subParts.join(" · ") + "</div>" : "") +
       (rc ? '<div class="rarity ' + rc + '">' + esc(car.rarity) + "</div>" : "") +
       (isSoftChase(car) ? '<div class="rarity th">Soft Chase</div>' : "") +
@@ -858,6 +910,12 @@
   // Tapping a linked spec value (Assortment / Series / OEM) closes the detail
   // and filters the grid to that value.
   $info.addEventListener("click", function (e) {
+    // Copy button: copy the casting name so it can be pasted after /track.
+    var copyBtn = e.target.closest ? e.target.closest(".copybtn") : null;
+    if (copyBtn) {
+      copyText(copyBtn.getAttribute("data-copy") || "", copyBtn);
+      return;
+    }
     var link = e.target.closest ? e.target.closest(".v.link, .sublink") : null;
     if (!link) return;
     var act = link.getAttribute("data-act");
