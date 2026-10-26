@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Hot Wheels Mainline</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    /* Fallbacks; overridden at runtime from Telegram theme params. */
+    --bg: #17212b;
+    --text: #f5f5f5;
+    --hint: #7d8b99;
+    --card: #232e3c;
+    --accent: #5eb5f7;
+    --border: #0e1621;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .search {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 16px; /* >=16px stops iOS zoom-on-focus */
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    outline: none;
+  }
+  .search::placeholder { color: var(--hint); }
+
+  .filters {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 8px 2px 2px;
+    scrollbar-width: none;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .chip.active { background: var(--accent); color: #0b1520; border-color: var(--accent); font-weight: 600; }
+
+  .count { color: var(--hint); font-size: 12px; padding: 6px 2px 0; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
+  @media (min-width: 520px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+  }
+  .thumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #0e1621;
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .badge {
+    position: absolute;
+    top: 6px; left: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 6px;
+    color: #0b1520;
+  }
+  .badge.th { background: #4caf50; }
+  .badge.sth { background: #ffd54a; }
+  .cardbody { padding: 8px 9px 10px; }
+  .cardbody .idx { color: var(--accent); font-size: 11px; font-weight: 700; }
+  .cardbody .title { font-weight: 600; font-size: 13px; margin: 2px 0 3px; }
+  .cardbody .series { color: var(--hint); font-size: 11px; }
+
+  .empty { text-align: center; color: var(--hint); padding: 40px 20px; }
+
+  /* Detail overlay */
+  .detail {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 20;
+    display: none;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .detail.open { display: flex; }
+  .detail .hero { width: 100%; aspect-ratio: 1 / 1; background: #0e1621; }
+  .detail .hero img { width: 100%; height: 100%; object-fit: contain; }
+  .detail .gallery {
+    display: flex; gap: 6px; overflow-x: auto; padding: 8px 12px;
+    scrollbar-width: none;
+  }
+  .detail .gallery::-webkit-scrollbar { display: none; }
+  .detail .gallery img {
+    height: 56px; width: 56px; object-fit: cover; border-radius: 8px;
+    border: 2px solid transparent; cursor: pointer; flex: 0 0 auto;
+  }
+  .detail .gallery img.sel { border-color: var(--accent); }
+  .detail .info { padding: 4px 16px 24px; }
+  .detail .info h2 { margin: 6px 0 2px; font-size: 20px; }
+  .detail .info .sub { color: var(--accent); font-weight: 600; margin-bottom: 14px; }
+  .spec { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .spec .k { color: var(--hint); }
+  .spec .v { text-align: right; }
+</style>
+</head>
+<body>
+  <header>
+    <input id="search" class="search" type="search" placeholder="Search name, series, SKU, OEM…" autocomplete="off" />
+    <div id="filters" class="filters"></div>
+    <div id="count" class="count"></div>
+  </header>
+
+  <div id="grid" class="grid"></div>
+
+  <div id="detail" class="detail">
+    <div class="hero"><img id="heroImg" alt="" /></div>
+    <div id="gallery" class="gallery"></div>
+    <div id="info" class="info"></div>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+
+  // Adopt Telegram's theme colours so the app matches the user's client.
+  function applyTheme() {
+    if (!tg) return;
+    var p = tg.themeParams || {};
+    var root = document.documentElement.style;
+    if (p.bg_color) root.setProperty("--bg", p.bg_color);
+    if (p.text_color) root.setProperty("--text", p.text_color);
+    if (p.hint_color) root.setProperty("--hint", p.hint_color);
+    if (p.secondary_bg_color) root.setProperty("--card", p.secondary_bg_color);
+    if (p.button_color) root.setProperty("--accent", p.button_color);
+    if (p.section_separator_color) root.setProperty("--border", p.section_separator_color);
+  }
+
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    applyTheme();
+    tg.onEvent("themeChanged", applyTheme);
+  }
+
+  var CARS = [];
+  var activeSeries = null;   // null = all
+  var rarityFilter = null;   // null | "th" (TH + STH)
+  var queryText = "";
+
+  var $search = document.getElementById("search");
+  var $filters = document.getElementById("filters");
+  var $grid = document.getElementById("grid");
+  var $count = document.getElementById("count");
+  var $detail = document.getElementById("detail");
+  var $heroImg = document.getElementById("heroImg");
+  var $gallery = document.getElementById("gallery");
+  var $info = document.getElementById("info");
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function rarityClass(r) {
+    var v = String(r || "").toLowerCase();
+    if (v === "super treasure hunt") return "sth";
+    if (v === "treasure hunt") return "th";
+    return null;
+  }
+
+  function matches(car) {
+    if (activeSeries && car.series_name !== activeSeries) return false;
+    if (rarityFilter === "th" && !rarityClass(car.rarity)) return false;
+    if (queryText) {
+      var hay = [car.title, car.series_name, car.sku, car.casting_number,
+                 car.oem, car.rarity, car.body_color, car.mainline_index]
+                 .join(" ").toLowerCase();
+      var terms = queryText.toLowerCase().split(/\s+/).filter(Boolean);
+      for (var i = 0; i < terms.length; i++) if (hay.indexOf(terms[i]) === -1) return false;
+    }
+    return true;
+  }
+
+  function render() {
+    var list = CARS.filter(matches);
+    $count.textContent = list.length + (list.length === 1 ? " car" : " cars");
+
+    if (list.length === 0) {
+      $grid.innerHTML = '<div class="empty">No cars match.</div>';
+      return;
+    }
+
+    var html = "";
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      var thumb = (c.images && c.images[0]) || "";
+      var rc = rarityClass(c.rarity);
+      var badge = rc === "sth" ? '<span class="badge sth">STH</span>'
+               : rc === "th" ? '<span class="badge th">TH</span>' : "";
+      html +=
+        '<div class="card" data-id="' + esc(c.id) + '">' +
+          '<div class="thumb">' + badge +
+            (thumb ? '<img loading="lazy" src="' + esc(thumb) + '" alt="">' : "") +
+          '</div>' +
+          '<div class="cardbody">' +
+            '<div class="idx">#' + esc(c.mainline_index) + '</div>' +
+            '<div class="title">' + esc(c.title) + '</div>' +
+            '<div class="series">' + esc(c.series_name) + '</div>' +
+          '</div>' +
+        '</div>';
+    }
+    $grid.innerHTML = html;
+  }
+
+  function buildSeriesChips() {
+    var counts = {};
+    for (var i = 0; i < CARS.length; i++) {
+      var s = CARS[i].series_name || "Unknown";
+      counts[s] = (counts[s] || 0) + 1;
+    }
+    var series = Object.keys(counts).sort(function (a, b) {
+      return counts[b] - counts[a] || a.localeCompare(b);
+    });
+
+    var chips = [
+      { key: "__all", label: "All", kind: "all" },
+      { key: "__th", label: "⭐ Treasure Hunts", kind: "th" }
+    ];
+    for (var j = 0; j < series.length; j++) {
+      chips.push({ key: series[j], label: series[j] + " (" + counts[series[j]] + ")", kind: "series" });
+    }
+
+    var html = "";
+    for (var k = 0; k < chips.length; k++) {
+      html += '<div class="chip" data-key="' + esc(chips[k].key) + '" data-kind="' +
+              chips[k].kind + '">' + esc(chips[k].label) + "</div>";
+    }
+    $filters.innerHTML = html;
+    syncChips();
+  }
+
+  function syncChips() {
+    var nodes = $filters.querySelectorAll(".chip");
+    for (var i = 0; i < nodes.length; i++) {
+      var kind = nodes[i].getAttribute("data-kind");
+      var key = nodes[i].getAttribute("data-key");
+      var on = (kind === "all" && !activeSeries && !rarityFilter) ||
+               (kind === "th" && rarityFilter === "th") ||
+               (kind === "series" && activeSeries === key);
+      nodes[i].classList.toggle("active", !!on);
+    }
+  }
+
+  function showDetail(car) {
+    var imgs = (car.images && car.images.length) ? car.images : [];
+    function setHero(src) { $heroImg.src = src || ""; }
+    setHero(imgs[0]);
+
+    var g = "";
+    for (var i = 0; i < imgs.length; i++) {
+      g += '<img data-src="' + esc(imgs[i]) + '" class="' + (i === 0 ? "sel" : "") +
+           '" src="' + esc(imgs[i]) + '" alt="">';
+    }
+    $gallery.innerHTML = g;
+    $gallery.onclick = function (e) {
+      var t = e.target;
+      if (t && t.tagName === "IMG") {
+        setHero(t.getAttribute("data-src"));
+        var sel = $gallery.querySelectorAll("img");
+        for (var i = 0; i < sel.length; i++) sel[i].classList.remove("sel");
+        t.classList.add("sel");
+      }
+    };
+
+    function row(k, v) {
+      if (v == null || v === "") return "";
+      return '<div class="spec"><span class="k">' + esc(k) + '</span><span class="v">' + esc(v) + "</span></div>";
+    }
+    $info.innerHTML =
+      "<h2>" + esc(car.title) + "</h2>" +
+      '<div class="sub">#' + esc(car.mainline_index) + " · " + esc(car.series_name) + "</div>" +
+      (car.rarity ? row("Rarity", car.rarity) : "") +
+      row("Series #", car.series_index) +
+      row("SKU", car.sku) +
+      row("Casting #", car.casting_number) +
+      row("OEM", car.oem) +
+      row("Body color", car.body_color) +
+      row("Interior", car.interior_colors) +
+      row("Base", [car.base_color, car.base_material].filter(Boolean).join(" / ")) +
+      row("Wheels", car.wheel_types) +
+      row("Scale", car.scale) +
+      row("Designer", car.casting_designer) +
+      row("Art director", car.art_director) +
+      row("Made in", car.country_of_origin) +
+      row("Year", car.release_year);
+
+    $detail.classList.add("open");
+    window.scrollTo(0, 0);
+
+    if (tg && tg.BackButton) {
+      tg.BackButton.show();
+      tg.BackButton.onClick(closeDetail);
+    }
+  }
+
+  function closeDetail() {
+    $detail.classList.remove("open");
+    if (tg && tg.BackButton) {
+      tg.BackButton.hide();
+      tg.BackButton.offClick(closeDetail);
+    }
+  }
+
+  // --- Events ---
+  $grid.addEventListener("click", function (e) {
+    var card = e.target.closest ? e.target.closest(".card") : null;
+    if (!card) return;
+    var id = card.getAttribute("data-id");
+    for (var i = 0; i < CARS.length; i++) {
+      if (CARS[i].id === id) { showDetail(CARS[i]); break; }
+    }
+  });
+
+  $filters.addEventListener("click", function (e) {
+    var chip = e.target.closest ? e.target.closest(".chip") : null;
+    if (!chip) return;
+    var kind = chip.getAttribute("data-kind");
+    var key = chip.getAttribute("data-key");
+    if (kind === "all") { activeSeries = null; rarityFilter = null; }
+    else if (kind === "th") { rarityFilter = (rarityFilter === "th" ? null : "th"); activeSeries = null; }
+    else if (kind === "series") { activeSeries = (activeSeries === key ? null : key); rarityFilter = null; }
+    syncChips();
+    render();
+    window.scrollTo(0, 0);
+  });
+
+  var searchTimer = null;
+  $search.addEventListener("input", function () {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function () {
+      queryText = $search.value.trim();
+      render();
+    }, 120);
+  });
+
+  // --- Load data ---
+  // Catalog snapshot committed alongside this page (data/mainline.json).
+  fetch("./data/mainline.json", { cache: "no-store" })
+    .then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    })
+    .then(function (data) {
+      CARS = (data && Array.isArray(data.cars)) ? data.cars : [];
+      CARS.sort(function (a, b) {
+        var ai = parseInt(a.mainline_index, 10), bi = parseInt(b.mainline_index, 10);
+        if (isNaN(ai)) ai = 1e9; if (isNaN(bi)) bi = 1e9;
+        return ai - bi;
+      });
+      buildSeriesChips();
+      render();
+    })
+    .catch(function (err) {
+      $grid.innerHTML = '<div class="empty">Couldn\'t load the catalog.<br>' + esc(err.message) + "</div>";
+    });
+})();
+</script>
+</body>
+</html>
