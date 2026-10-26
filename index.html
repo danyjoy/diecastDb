@@ -311,6 +311,10 @@
   .spec { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
   .spec .k { color: var(--hint); }
   .spec .v { text-align: right; font-weight: 600; }
+  .spec .v.link { color: var(--accent); cursor: pointer; }
+  .spec .v.link:active { opacity: .6; }
+  .info .sub .sublink { cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .info .sub .sublink:active { opacity: .6; }
 </style>
 </head>
 <body>
@@ -737,7 +741,10 @@
     window.scrollTo(0, 0);
   });
 
+  var currentCar = null; // the car shown in the detail view (for its filters)
+
   function showDetail(car) {
+    currentCar = car;
     var imgs = (car.images && car.images.length) ? car.images : [];
     function setHero(src) { $heroImg.src = src || ""; }
     setHero(imgs[0]);
@@ -766,25 +773,40 @@
       if (s === "" || s.toLowerCase() === "null") return "";
       return '<div class="spec"><span class="k">' + esc(k) + '</span><span class="v">' + esc(s) + "</span></div>";
     }
+    // Like row(), but the value is tappable and, when tapped, filters the grid.
+    // action: "group" (assortment/first-level), "sub" (series within group),
+    // or "search" (free-text, e.g. OEM).
+    function linkRow(k, v, action) {
+      if (v == null) return "";
+      var s = String(v).trim();
+      if (s === "" || s.toLowerCase() === "null") return "";
+      return '<div class="spec"><span class="k">' + esc(k) + '</span>' +
+             '<span class="v link" data-act="' + action + '" data-val="' + esc(s) + '">' +
+             esc(s) + ' ›</span></div>';
+    }
     var rc = rarityClass(car.rarity);
     // Subhead: "#<index> · <series>", omitting the # when there's no index.
     var dIdx = car.mainline_index || car.series_index || "";
     var dSeries = seriesOf(car);
     var subParts = [];
     if (dIdx) subParts.push("#" + esc(dIdx));
-    if (dSeries) subParts.push(esc(dSeries));
+    if (dSeries) subParts.push('<span class="sublink" data-act="group" data-val="' +
+                               esc(dSeries) + '">' + esc(dSeries) + "</span>");
     // Every meaningful field from the JSON, in a readable order. row() skips
     // anything null/empty, so a car only shows the data it actually has.
+    // Series maps to the sub-level filter on two-level collections (premium/
+    // silver), else the group-level filter (mainline).
+    var seriesAct = SUBGROUP_FIELD ? "sub" : "group";
     var specs =
       row("Year", car.release_year) +
       row("Segment", car.segment) +
-      row("Assortment", car.assortment) +
-      row("Series", car.series_name) +
+      linkRow("Assortment", car.assortment, "group") +
+      linkRow("Series", car.series_name, seriesAct) +
       row("Series #", car.series_index) +
       row("Mainline #", car.mainline_index) +
       row("SKU", car.sku_variation ? (car.sku + " · var " + car.sku_variation) : car.sku) +
       row("Casting #", car.casting_number) +
-      row("OEM", car.oem) +
+      linkRow("OEM", car.oem, "search") +
       row("Scale", car.scale) +
       row("Body color", car.body_color) +
       row("Base material", car.base_material) +
@@ -825,6 +847,35 @@
 
   // --- Events ---
   $backBtn.addEventListener("click", closeDetail);
+
+  // Tapping a linked spec value (Assortment / Series / OEM) closes the detail
+  // and filters the grid to that value.
+  $info.addEventListener("click", function (e) {
+    var link = e.target.closest ? e.target.closest(".v.link, .sublink") : null;
+    if (!link) return;
+    var act = link.getAttribute("data-act");
+    var val = link.getAttribute("data-val");
+    if (!act || !val) return;
+
+    // Clear any current filters, then apply the chosen one.
+    activeSeries = null; activeSub = null; rarityFilter = null;
+    $search.value = ""; queryText = "";
+
+    if (act === "group") {
+      activeSeries = val;
+    } else if (act === "sub") {
+      // Set the parent assortment (from the shown car) so the sub filter is valid.
+      if (currentCar && GROUP_FIELD) activeSeries = (currentCar[GROUP_FIELD] || "").toString().trim() || null;
+      activeSub = val;
+    } else if (act === "search") {
+      $search.value = val; queryText = val;
+    }
+
+    closeDetail();
+    buildSeriesChips();
+    render();
+    window.scrollTo(0, 0);
+  });
 
   $grid.addEventListener("click", function (e) {
     var card = e.target.closest ? e.target.closest(".card") : null;
