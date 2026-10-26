@@ -773,19 +773,29 @@
       if (s === "" || s.toLowerCase() === "null") return "";
       return '<div class="spec"><span class="k">' + esc(k) + '</span><span class="v">' + esc(s) + "</span></div>";
     }
-    // Like row(), but the value is tappable and, when tapped, filters the grid.
-    // action: "group" (assortment/first-level), "sub" (series within group),
-    // or "search" (free-text, e.g. OEM).
-    function linkRow(k, v, action) {
+    // Like row(), but tappable: filtering the grid by this car's value in
+    // `field`. We only make it a link when `field` is actually one of the
+    // current collection's filter fields (group or subgroup) — otherwise it
+    // would filter to nothing (e.g. "Assortment: Mainline" on the mainline
+    // collection, which groups by series_name). `search` is always linkable.
+    function linkRow(k, v, field) {
       if (v == null) return "";
       var s = String(v).trim();
       if (s === "" || s.toLowerCase() === "null") return "";
+      var act = null;
+      if (field === "search") act = "search";
+      else if (field === GROUP_FIELD) act = "group";
+      else if (SUBGROUP_FIELD && field === SUBGROUP_FIELD) act = "sub";
+      if (!act) {
+        return '<div class="spec"><span class="k">' + esc(k) + '</span><span class="v">' + esc(s) + "</span></div>";
+      }
       return '<div class="spec"><span class="k">' + esc(k) + '</span>' +
-             '<span class="v link" data-act="' + action + '" data-val="' + esc(s) + '">' +
+             '<span class="v link" data-act="' + act + '" data-val="' + esc(s) + '">' +
              esc(s) + ' ›</span></div>';
     }
     var rc = rarityClass(car.rarity);
     // Subhead: "#<index> · <series>", omitting the # when there's no index.
+    // The series part links to the group filter (it's the group value).
     var dIdx = car.mainline_index || car.series_index || "";
     var dSeries = seriesOf(car);
     var subParts = [];
@@ -794,14 +804,11 @@
                                esc(dSeries) + '">' + esc(dSeries) + "</span>");
     // Every meaningful field from the JSON, in a readable order. row() skips
     // anything null/empty, so a car only shows the data it actually has.
-    // Series maps to the sub-level filter on two-level collections (premium/
-    // silver), else the group-level filter (mainline).
-    var seriesAct = SUBGROUP_FIELD ? "sub" : "group";
     var specs =
       row("Year", car.release_year) +
       row("Segment", car.segment) +
-      linkRow("Assortment", car.assortment, "group") +
-      linkRow("Series", car.series_name, seriesAct) +
+      linkRow("Assortment", car.assortment, "assortment") +
+      linkRow("Series", car.series_name, "series_name") +
       row("Series #", car.series_index) +
       row("Mainline #", car.mainline_index) +
       row("SKU", car.sku_variation ? (car.sku + " · var " + car.sku_variation) : car.sku) +
