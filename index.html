@@ -144,6 +144,9 @@
     width: 30px; height: 30px; border-radius: 50%; font-size: 14px; cursor: pointer;
   }
   .sheet-search { padding: 0 16px 10px; }
+  /* Icon is positioned against the padded wrapper, so offset it by the 16px
+     side padding and center it on the input itself (ignore the bottom padding). */
+  .sheet-search svg { left: 29px; top: 13px; transform: none; }
   .series-list { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 8px 12px; }
   .series-row {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -343,12 +346,12 @@
     <div class="sheet-backdrop" id="sheetBackdrop"></div>
     <div class="sheet-panel">
       <div class="sheet-head">
-        <span>Filter by series</span>
+        <span id="sheetTitle">Filter</span>
         <button id="sheetClose" class="sheet-close" type="button" aria-label="Close">✕</button>
       </div>
       <div class="searchwrap sheet-search">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
-        <input id="seriesSearch" class="search" type="search" placeholder="Find a series…" autocomplete="off" />
+        <input id="seriesSearch" class="search" type="search" placeholder="Search…" autocomplete="off" />
       </div>
       <div id="seriesList" class="series-list"></div>
     </div>
@@ -448,6 +451,7 @@
   var $sheet = document.getElementById("sheet");
   var $sheetBackdrop = document.getElementById("sheetBackdrop");
   var $sheetClose = document.getElementById("sheetClose");
+  var $sheetTitle = document.getElementById("sheetTitle");
   var $seriesSearch = document.getElementById("seriesSearch");
   var $seriesList = document.getElementById("seriesList");
   var $yearSheet = document.getElementById("yearSheet");
@@ -667,8 +671,8 @@
 
     var rows =
       '<div class="series-row' + (!sel ? " active" : "") +
-      '" data-series="__all"><span class="nm">All ' + esc(sheetTitle().toLowerCase()) +
-      '</span><span class="ct">' + allCount + "</span></div>";
+      '" data-series="__all"><span class="nm">All</span>' +
+      '<span class="ct">' + allCount + "</span></div>";
 
     var shown = 0;
     for (var i = 0; i < items.length; i++) {
@@ -691,8 +695,10 @@
 
   function openSeriesSheet(mode) {
     sheetMode = mode || "group";
+    var label = sheetTitle();
+    $sheetTitle.textContent = "Filter by " + label.toLowerCase();
     $seriesSearch.value = "";
-    $seriesSearch.placeholder = "Find a " + sheetTitle().toLowerCase() + "…";
+    $seriesSearch.placeholder = "Search " + label.toLowerCase() + "…";
     renderSeriesList("");
     $sheet.classList.add("open");
     $seriesList.scrollTop = 0;
