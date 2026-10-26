@@ -303,6 +303,7 @@
   .info .rarity.th { background: var(--silver-bg); color: var(--silver); }
   .info .rarity.sth { background: var(--gold-bg); color: var(--gold); }
   .info .rarity.chase { background: var(--chase-bg); color: var(--chase); }
+  .info .rarity.meta { background: var(--card2); color: var(--hint); }
 
   .spec { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
   .spec .k { color: var(--hint); }
@@ -698,8 +699,10 @@
     };
 
     function row(k, v) {
-      if (v == null || v === "") return "";
-      return '<div class="spec"><span class="k">' + esc(k) + '</span><span class="v">' + esc(v) + "</span></div>";
+      if (v == null) return "";
+      var s = String(v).trim();
+      if (s === "" || s.toLowerCase() === "null") return "";
+      return '<div class="spec"><span class="k">' + esc(k) + '</span><span class="v">' + esc(s) + "</span></div>";
     }
     var rc = rarityClass(car.rarity);
     // Subhead: "#<index> · <series>", omitting the # when there's no index.
@@ -708,25 +711,36 @@
     var subParts = [];
     if (dIdx) subParts.push("#" + esc(dIdx));
     if (dSeries) subParts.push(esc(dSeries));
+    // Every meaningful field from the JSON, in a readable order. row() skips
+    // anything null/empty, so a car only shows the data it actually has.
+    var specs =
+      row("Year", car.release_year) +
+      row("Segment", car.segment) +
+      row("Assortment", car.assortment) +
+      row("Series", car.series_name) +
+      row("Series #", car.series_index) +
+      row("Mainline #", car.mainline_index) +
+      row("SKU", car.sku_variation ? (car.sku + " · var " + car.sku_variation) : car.sku) +
+      row("Casting #", car.casting_number) +
+      row("OEM", car.oem) +
+      row("Scale", car.scale) +
+      row("Body color", car.body_color) +
+      row("Base material", car.base_material) +
+      row("Base color", car.base_color) +
+      row("Interior color", car.interior_colors) +
+      row("Window color", car.window_colors) +
+      row("Wheel type", car.wheel_types) +
+      row("Casting designer", car.casting_designer) +
+      row("Art director", car.art_director) +
+      row("Made in", car.country_of_origin);
+
     $info.innerHTML =
       "<h2>" + esc(car.title) + "</h2>" +
       (subParts.length ? '<div class="sub">' + subParts.join(" · ") + "</div>" : "") +
       (rc ? '<div class="rarity ' + rc + '">' + esc(car.rarity) + "</div>" : "") +
       (isSoftChase(car) ? '<div class="rarity th">Soft Chase</div>' : "") +
-      row("Series", car.series_name) +
-      row("Series #", car.series_index) +
-      row("SKU", car.sku) +
-      row("Casting #", car.casting_number) +
-      row("OEM", car.oem) +
-      row("Body color", car.body_color) +
-      row("Interior", car.interior_colors) +
-      row("Base", [car.base_color, car.base_material].filter(Boolean).join(" / ")) +
-      row("Wheels", car.wheel_types) +
-      row("Scale", car.scale) +
-      row("Designer", car.casting_designer) +
-      row("Art director", car.art_director) +
-      row("Made in", car.country_of_origin) +
-      row("Year", car.release_year);
+      (isMetalBase(car) && !isSoftChase(car) ? '<div class="rarity meta">Metal base</div>' : "") +
+      specs;
 
     $detail.classList.add("open");
     $dscroll.scrollTop = 0;
