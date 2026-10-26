@@ -22,22 +22,7 @@
     --silver: #c4c9d4;
     --silver-bg: #1e2026;
   }
-  /* Light theme — applied only when Telegram reports colorScheme === "light".
-     Product shots still sit on white; cards get a light surface. */
-  body.light {
-    --bg: #ffffff;
-    --bg2: #f2f3f5;
-    --text: #0c0d10;
-    --hint: #6b7178;
-    --card: #f4f5f7;
-    --card2: #e9ebee;
-    --accent: #2f8fff;
-    --border: #e2e4e8;
-    --gold: #b8860b;
-    --gold-bg: #fbf3d8;
-    --silver: #8a909c;
-    --silver-bg: #eceef1;
-  }
+  /* Always dark — we intentionally do not follow Telegram's light theme. */
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; height: 100%; }
   body {
@@ -101,8 +86,11 @@
     cursor: pointer;
   }
   .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
-  .chip.th.active { background: var(--silver); color: #16181d; border-color: var(--silver); }
+  /* STH chip stands out in gold even when inactive; solid gold when active. */
+  .chip.sth { background: var(--gold-bg); color: var(--gold); border-color: var(--gold); font-weight: 700; }
   .chip.sth.active { background: var(--gold); color: #1a1500; border-color: var(--gold); }
+  /* TH chip uses the silver accent when active. */
+  .chip.th.active { background: var(--silver); color: #16181d; border-color: var(--silver); }
 
   /* "Series ▾" dropdown pill — opens the bottom sheet. Shows the chosen series
      (with an × to clear) when one is active, so the long list stays hidden. */
@@ -296,7 +284,7 @@
 </head>
 <body>
   <header>
-    <h1>Discover</h1>
+    <h1 id="title">Hot Wheels</h1>
     <div class="searchwrap">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
       <input id="search" class="search" type="search" placeholder="Search series, vehicles, SKU…" autocomplete="off" />
@@ -344,24 +332,14 @@
 
   var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
-  // Dark by default (matches the reference UI). When running inside Telegram we
-  // follow its colour scheme: light mode flips to the light palette, otherwise
-  // we stay dark. Outside Telegram (plain browser) tg is null, so it's dark.
-  function applyScheme() {
-    var light = !!(tg && tg.colorScheme === "light");
-    document.body.classList.toggle("light", light);
-    var bg = light ? "#ffffff" : "#000000";
-    try { tg && tg.setHeaderColor && tg.setHeaderColor(bg); } catch (e) {}
-    try { tg && tg.setBackgroundColor && tg.setBackgroundColor(bg); } catch (e) {}
-    var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", bg);
-  }
-
+  // Always dark — we do NOT follow Telegram's colour scheme (it could be light
+  // and wash out the gallery). We only push the dark colour to Telegram's own
+  // chrome so the header/background match, even on a light client.
   if (tg) {
     tg.ready();
     tg.expand();
-    applyScheme();
-    tg.onEvent("themeChanged", applyScheme);
+    try { tg.setHeaderColor && tg.setHeaderColor("#000000"); } catch (e) {}
+    try { tg.setBackgroundColor && tg.setBackgroundColor("#000000"); } catch (e) {}
   }
 
   var CARS = [];
@@ -373,6 +351,7 @@
   var curYear = null;        // selected year (string)
   var curAssort = null;      // selected assortment key (string)
 
+  var $title = document.getElementById("title");
   var $search = document.getElementById("search");
   var $collbar = document.getElementById("collbar");
   var $filters = document.getElementById("filters");
@@ -482,10 +461,12 @@
 
     var html = '<div class="chip' + (!activeSeries && !rarityFilter ? " active" : "") +
                '" data-kind="all">All</div>';
+    // Super TH first — it's the rarest/most important. The chip is gold-styled
+    // even when inactive so it stands out in the bar.
+    if (sthCount) html += '<div class="chip sth' + (rarityFilter === "sth" ? " active" : "") +
+                          '" data-kind="sth">⭐ Super TH (' + sthCount + ")</div>";
     if (thCount) html += '<div class="chip th' + (rarityFilter === "th" ? " active" : "") +
                          '" data-kind="th">Treasure Hunt (' + thCount + ")</div>";
-    if (sthCount) html += '<div class="chip sth' + (rarityFilter === "sth" ? " active" : "") +
-                          '" data-kind="sth">Super TH (' + sthCount + ")</div>";
 
     // Series picker pill (shows the chosen series + a clear button when active).
     if (activeSeries) {
@@ -738,6 +719,15 @@
     curYear = String(year);
     curAssort = assortKey;
     activeSeries = null; rarityFilter = null;
+
+    // Header reflects the current collection, e.g. "Mainline 2026".
+    var label = assortKey;
+    var list = assortmentsFor(year);
+    for (var li = 0; li < list.length; li++) {
+      if (list[li].key === assortKey) { label = list[li].label || assortKey; break; }
+    }
+    $title.textContent = label + " " + curYear;
+
     renderCollbar();
     $grid.innerHTML = '<div class="empty">Loading…</div>';
 
