@@ -1,0 +1,44 @@
+name: Update Hot Wheels catalog
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC. (GitHub cron is always UTC.)
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+permissions:
+  contents: write # needed to commit the refreshed data back
+
+concurrency:
+  group: update-catalog
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20" # has global fetch()
+
+      - name: Scrape current + next year for all collections
+        env:
+          WAF_COOKIE: ${{ secrets.WAF_COOKIE }}
+        run: node scripts/update-catalog.js
+
+      - name: Commit and push if data changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain data)" ]; then
+            git add data
+            git commit -m "Weekly catalog refresh ($(date -u +%Y-%m-%d))"
+            git push
+            echo "Pushed updated catalog."
+          else
+            echo "No catalog changes this run."
+          fi
