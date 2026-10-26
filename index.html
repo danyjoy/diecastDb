@@ -21,6 +21,8 @@
     --gold-bg: #2a2410;
     --silver: #c4c9d4;
     --silver-bg: #1e2026;
+    --chase: #b388ff;
+    --chase-bg: #241a33;
   }
   /* Always dark — we intentionally do not follow Telegram's light theme. */
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -104,6 +106,9 @@
   .chip.sth.active { background: var(--gold); color: #1a1500; border-color: var(--gold); }
   /* TH chip uses the silver accent when active. */
   .chip.th.active { background: var(--silver); color: #16181d; border-color: var(--silver); }
+  /* Chase chip (premium): violet highlight, solid when active. */
+  .chip.chase { color: var(--chase); border-color: var(--border); font-weight: 700; }
+  .chip.chase.active { background: var(--chase); color: #1a0f2e; border-color: var(--chase); }
 
   /* "Series ▾" dropdown pill — opens the bottom sheet. Shows the chosen series
      (with an × to clear) when one is active, so the long list stays hidden. */
@@ -194,6 +199,7 @@
   /* Treasure Hunt → silver card; Super Treasure Hunt → gold card. */
   .card.th { background: var(--silver-bg); border-color: var(--silver); }
   .card.sth { background: var(--gold-bg); border-color: var(--gold); }
+  .card.chase { background: var(--chase-bg); border-color: var(--chase); }
 
   .thumb {
     position: relative;
@@ -203,6 +209,7 @@
   }
   .card.th .thumb { background: #eceef2; }
   .card.sth .thumb { background: #f7edcf; }
+  .card.chase .thumb { background: #efe8fb; }
   .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
   .badge {
@@ -216,6 +223,7 @@
   }
   .badge.th { background: var(--silver); color: #16181d; }
   .badge.sth { background: var(--gold); color: #1a1500; }
+  .badge.chase { background: var(--chase); color: #1a0f2e; }
 
   .cardbody { padding: 9px 10px 11px; }
   .cardbody .title {
@@ -232,8 +240,10 @@
   }
   .card.th .tag { background: #252830; border-color: #3a3f4a; color: #c4c9d4; }
   .card.sth .tag { background: #342c12; border-color: #4a3f1a; color: #d8c78a; }
+  .card.chase .tag { background: #2c2142; border-color: #463464; color: #cdb8f5; }
   .tag.silver { color: var(--silver); border-color: #3a3f4a; }
   .tag.gold { color: var(--gold); border-color: #4a3f1a; }
+  .tag.chase { color: var(--chase); border-color: #463464; }
 
   .empty { grid-column: 1 / -1; text-align: center; color: var(--hint); padding: 40px 20px; }
 
@@ -288,6 +298,7 @@
     padding: 4px 10px; border-radius: 8px; }
   .info .rarity.th { background: var(--silver-bg); color: var(--silver); }
   .info .rarity.sth { background: var(--gold-bg); color: var(--gold); }
+  .info .rarity.chase { background: var(--chase-bg); color: var(--chase); }
 
   .spec { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
   .spec .k { color: var(--hint); }
@@ -413,6 +424,7 @@
     var v = String(r || "").toLowerCase();
     if (v === "super treasure hunt") return "sth";
     if (v === "treasure hunt") return "th";
+    if (v === "chase") return "chase";
     return null;
   }
 
@@ -445,10 +457,12 @@
       var thumb = (c.images && c.images[0]) || "";
       var rc = rarityClass(c.rarity);
       var badge = rc === "sth" ? '<span class="badge sth">$TH</span>'
-               : rc === "th" ? '<span class="badge th">TH</span>' : "";
+               : rc === "th" ? '<span class="badge th">TH</span>'
+               : rc === "chase" ? '<span class="badge chase">CHASE</span>' : "";
       var rarityTag = rc === "sth"
         ? '<span class="tag gold">Super TH</span>'
-        : rc === "th" ? '<span class="tag silver">Treasure Hunt</span>' : "";
+        : rc === "th" ? '<span class="tag silver">Treasure Hunt</span>'
+        : rc === "chase" ? '<span class="tag chase">Chase</span>' : "";
       // Collector number: mainlines use mainline_index, premium lines use
       // series_index. Only show the tag when there's an actual number.
       var idx = c.mainline_index || c.series_index || "";
@@ -499,10 +513,12 @@
   // list lives behind a "Series ▾" pill that opens a searchable bottom sheet.
   // This keeps the horizontal strip short instead of ~30 chips to scroll past.
   function renderFilters() {
-    var thCount = 0, sthCount = 0;
+    var thCount = 0, sthCount = 0, chaseCount = 0;
     for (var t = 0; t < CARS.length; t++) {
       var r = rarityClass(CARS[t].rarity);
-      if (r === "th") thCount++; else if (r === "sth") sthCount++;
+      if (r === "th") thCount++;
+      else if (r === "sth") sthCount++;
+      else if (r === "chase") chaseCount++;
     }
 
     var html = '<div class="chip' + (!activeSeries && !rarityFilter ? " active" : "") +
@@ -513,6 +529,9 @@
                           '" data-kind="sth">⭐ Super TH (' + sthCount + ")</div>";
     if (thCount) html += '<div class="chip th' + (rarityFilter === "th" ? " active" : "") +
                          '" data-kind="th">Treasure Hunt (' + thCount + ")</div>";
+    // Chase (premium only) — violet highlight, between the hunts and series.
+    if (chaseCount) html += '<div class="chip chase' + (rarityFilter === "chase" ? " active" : "") +
+                            '" data-kind="chase">Chase (' + chaseCount + ")</div>";
 
     // Series picker pill — only when this collection actually has series
     // (e.g. Mainline). Assortments without series (Boulevard) skip it.
@@ -703,6 +722,7 @@
     if (kind === "all") { activeSeries = null; rarityFilter = null; }
     else if (kind === "th") { rarityFilter = (rarityFilter === "th" ? null : "th"); activeSeries = null; }
     else if (kind === "sth") { rarityFilter = (rarityFilter === "sth" ? null : "sth"); activeSeries = null; }
+    else if (kind === "chase") { rarityFilter = (rarityFilter === "chase" ? null : "chase"); activeSeries = null; }
     else if (kind === "series-open") { openSeriesSheet(); return; }
     renderFilters();
     render();
