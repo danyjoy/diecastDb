@@ -899,6 +899,10 @@
     $detail.classList.add("open");
     $dscroll.scrollTop = 0;
 
+    // Push a history entry so the phone's back gesture / button pops this
+    // detail instead of exiting the whole app. popstate (below) closes it.
+    try { history.pushState({ detail: true }, ""); } catch (e) {}
+
     // Telegram's native BackButton only renders inside the Telegram client; the
     // in-page Back bar covers the browser/preview case, so both paths work.
     if (tg && tg.BackButton) {
@@ -907,13 +911,27 @@
     }
   }
 
-  function closeDetail() {
+  // fromPop=true means we're being called by the popstate handler (the history
+  // entry is already gone). Otherwise we pop it ourselves via history.back().
+  function closeDetail(fromPop) {
+    if (!$detail.classList.contains("open")) return;
     $detail.classList.remove("open");
     if (tg && tg.BackButton) {
       tg.BackButton.hide();
       tg.BackButton.offClick(closeDetail);
     }
+    if (fromPop !== true) {
+      // Remove the history entry we pushed when opening (triggers popstate,
+      // which no-ops since the overlay is already closed).
+      try { history.back(); } catch (e) {}
+    }
   }
+
+  // Back gesture / hardware back / browser back fires popstate. If the detail
+  // is open, consume it to close the detail rather than leave the app.
+  window.addEventListener("popstate", function () {
+    if ($detail.classList.contains("open")) closeDetail(true);
+  });
 
   // --- Events ---
   $backBtn.addEventListener("click", closeDetail);
