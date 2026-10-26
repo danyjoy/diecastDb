@@ -1,12 +1,17 @@
 {
   "updated_at": "2026-10-26",
-  "default": { "year": "2026", "assortment": "mainline" },
-  "years": [
+  "default": { "assortment": "mainline" },
+  "file_pattern": "{year}/{assortment}.json",
+  "assortments": [
     {
-      "year": "2026",
-      "assortments": [
-        { "key": "mainline", "label": "Mainline", "file": "2026/mainline.json" }
-      ]
+      "key": "mainline",
+      "label": "Mainline",
+      "years": ["2026"]
+    },
+    {
+      "key": "boulevard",
+      "label": "Boulevard",
+      "years": ["2026", "2025", "2024", "2023", "2022", "2021", "2020", "2013", "2012"]
     }
   ]
 }

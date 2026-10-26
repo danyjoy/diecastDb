@@ -48,7 +48,19 @@
     font-weight: 800;
     letter-spacing: 1px;
     text-transform: uppercase;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   }
+  header h1 .title-name { line-height: 1.1; }
+  /* Year dropdown button inside the header title. */
+  .year-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 15px; font-weight: 700; letter-spacing: .5px;
+    color: var(--accent); background: var(--card2);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 5px 11px; cursor: pointer; text-transform: none;
+  }
+  .year-btn.single { background: transparent; border-color: transparent; color: var(--hint); cursor: default; padding-left: 0; }
+  .year-btn .caret { font-size: 11px; opacity: .85; }
   .searchwrap { position: relative; }
   .searchwrap svg {
     position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
@@ -143,17 +155,16 @@
   .series-row .tick { color: var(--accent); font-weight: 700; margin-left: 4px; }
 
   /* Collection bar: Year group + Assortment group (what to browse). */
+  /* Assortment menu (Mainline / Boulevard / …) — a pill row under the search. */
   .collbar {
-    display: flex; gap: 14px; overflow-x: auto;
+    display: flex; gap: 8px; overflow-x: auto;
     padding: 12px 0 0; scrollbar-width: none;
   }
   .collbar::-webkit-scrollbar { display: none; }
-  .collgroup { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
-  .collgroup .lbl { font-size: 11px; color: var(--hint); text-transform: uppercase; letter-spacing: .5px; }
   .collbtn {
-    flex: 0 0 auto; padding: 6px 12px; border-radius: 9px;
+    flex: 0 0 auto; padding: 8px 16px; border-radius: 10px;
     border: 1px solid var(--border); background: var(--card2);
-    color: var(--text); font-size: 13px; font-weight: 600;
+    color: var(--text); font-size: 14px; font-weight: 600;
     white-space: nowrap; cursor: pointer;
   }
   .collbtn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -327,6 +338,18 @@
     </div>
   </div>
 
+  <!-- Year picker (bottom sheet) -->
+  <div id="yearSheet" class="sheet">
+    <div class="sheet-backdrop" id="yearBackdrop"></div>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <span>Select year</span>
+        <button id="yearClose" class="sheet-close" type="button" aria-label="Close">✕</button>
+      </div>
+      <div id="yearList" class="series-list"></div>
+    </div>
+  </div>
+
 <script>
 (function () {
   "use strict";
@@ -361,6 +384,10 @@
   var $sheetClose = document.getElementById("sheetClose");
   var $seriesSearch = document.getElementById("seriesSearch");
   var $seriesList = document.getElementById("seriesList");
+  var $yearSheet = document.getElementById("yearSheet");
+  var $yearBackdrop = document.getElementById("yearBackdrop");
+  var $yearClose = document.getElementById("yearClose");
+  var $yearList = document.getElementById("yearList");
   var $grid = document.getElementById("grid");
   var $count = document.getElementById("count");
   var $detail = document.getElementById("detail");
@@ -663,84 +690,89 @@
     }, 120);
   });
 
-  // --- Collections (year + assortment), driven by data/index.json ---
+  // --- Collections (assortment + year), driven by data/index.json ---
+  //
+  // Manifest model is assortment-first: each assortment lists the years it has.
+  // The assortment is the primary choice (a menu row under the header); the
+  // year is a dropdown next to the title. Files follow file_pattern, default
+  // "{year}/{assortment}.json".
 
-  function yearEntry(year) {
-    var ys = (MANIFEST && MANIFEST.years) || [];
-    for (var i = 0; i < ys.length; i++) if (String(ys[i].year) === String(year)) return ys[i];
+  var FILE_PATTERN = "{year}/{assortment}.json";
+
+  function assortmentList() {
+    return (MANIFEST && Array.isArray(MANIFEST.assortments)) ? MANIFEST.assortments : [];
+  }
+
+  function assortmentEntry(key) {
+    var list = assortmentList();
+    for (var i = 0; i < list.length; i++) if (list[i].key === key) return list[i];
     return null;
   }
 
-  function assortmentsFor(year) {
-    var y = yearEntry(year);
-    return (y && Array.isArray(y.assortments)) ? y.assortments : [];
+  function labelFor(key) {
+    var a = assortmentEntry(key);
+    return (a && a.label) || key;
   }
 
-  function fileFor(year, assortKey) {
-    var list = assortmentsFor(year);
-    for (var i = 0; i < list.length; i++) if (list[i].key === assortKey) return list[i].file;
-    return null;
+  // Years an assortment has, newest-first (descending).
+  function yearsFor(key) {
+    var a = assortmentEntry(key);
+    var ys = (a && Array.isArray(a.years)) ? a.years.slice() : [];
+    ys.sort(function (x, y) { return parseInt(y, 10) - parseInt(x, 10); });
+    return ys;
   }
 
-  // Render the Year group + Assortment group. The assortment buttons reflect
-  // whatever the selected year offers, so a year with only mainline shows one.
-  function renderCollbar() {
-    var years = ((MANIFEST && MANIFEST.years) || []).map(function (y) { return String(y.year); });
+  function fileFor(assortKey, year) {
+    return "./data/" + FILE_PATTERN
+      .replace("{year}", String(year))
+      .replace("{assortment}", String(assortKey));
+  }
+
+  // Assortment menu: one pill per assortment, shown above the filters. Hidden
+  // if there's only one assortment (nothing to choose).
+  function renderAssortMenu() {
+    var list = assortmentList();
+    if (list.length <= 1) { $collbar.innerHTML = ""; $collbar.style.display = "none"; return; }
     var html = "";
-
-    if (years.length > 1) {
-      html += '<div class="collgroup"><span class="lbl">Year</span>';
-      for (var i = 0; i < years.length; i++) {
-        html += '<button class="collbtn' + (years[i] === curYear ? " active" : "") +
-                '" data-type="year" data-val="' + esc(years[i]) + '">' + esc(years[i]) + "</button>";
-      }
-      html += "</div>";
+    for (var i = 0; i < list.length; i++) {
+      html += '<button class="collbtn' + (list[i].key === curAssort ? " active" : "") +
+              '" data-assort="' + esc(list[i].key) + '">' + esc(list[i].label || list[i].key) + "</button>";
     }
-
-    var assorts = assortmentsFor(curYear);
-    if (assorts.length > 1) {
-      html += '<div class="collgroup"><span class="lbl">Type</span>';
-      for (var j = 0; j < assorts.length; j++) {
-        html += '<button class="collbtn' + (assorts[j].key === curAssort ? " active" : "") +
-                '" data-type="assort" data-val="' + esc(assorts[j].key) + '">' +
-                esc(assorts[j].label || assorts[j].key) + "</button>";
-      }
-      html += "</div>";
-    }
-
     $collbar.innerHTML = html;
-    $collbar.style.display = html ? "flex" : "none";
+    $collbar.style.display = "flex";
   }
 
-  // Fetch and show one collection file. Resets series/rarity filters since the
+  // Header title + year dropdown. The year control only shows a caret when the
+  // assortment has more than one year.
+  function renderTitle() {
+    var years = yearsFor(curAssort);
+    var multi = years.length > 1;
+    $title.innerHTML =
+      '<span class="title-name">' + esc(labelFor(curAssort)) + "</span>" +
+      '<button id="yearBtn" class="year-btn' + (multi ? "" : " single") +
+      '" type="button">' + esc(curYear) + (multi ? ' <span class="caret">▾</span>' : "") + "</button>";
+    var yb = document.getElementById("yearBtn");
+    if (yb && multi) yb.addEventListener("click", openYearSheet);
+  }
+
+  // Fetch and show one collection. Resets series/rarity filters since the
   // series list differs per collection.
-  function loadCollection(year, assortKey) {
-    var file = fileFor(year, assortKey);
-    if (!file) {
-      // Fall back to the first assortment the year does have.
-      var list = assortmentsFor(year);
-      if (list.length) { assortKey = list[0].key; file = list[0].file; }
-    }
-    if (!file) {
-      $grid.innerHTML = '<div class="empty">No catalog available for ' + esc(year) + ".</div>";
+  function loadCollection(assortKey, year) {
+    var years = yearsFor(assortKey);
+    if (years.indexOf(String(year)) === -1) year = years[0]; // fall back to newest
+    if (!assortKey || !year) {
+      $grid.innerHTML = '<div class="empty">No catalog available.</div>';
       return;
     }
-    curYear = String(year);
     curAssort = assortKey;
+    curYear = String(year);
     activeSeries = null; rarityFilter = null;
 
-    // Header reflects the current collection, e.g. "Mainline 2026".
-    var label = assortKey;
-    var list = assortmentsFor(year);
-    for (var li = 0; li < list.length; li++) {
-      if (list[li].key === assortKey) { label = list[li].label || assortKey; break; }
-    }
-    $title.textContent = label + " " + curYear;
-
-    renderCollbar();
+    renderAssortMenu();
+    renderTitle();
     $grid.innerHTML = '<div class="empty">Loading…</div>';
 
-    fetch("./data/" + file, { cache: "no-store" })
+    fetch(fileFor(assortKey, year), { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .then(function (data) {
         CARS = (data && Array.isArray(data.cars)) ? data.cars : [];
@@ -760,16 +792,39 @@
   $collbar.addEventListener("click", function (e) {
     var btn = e.target.closest ? e.target.closest(".collbtn") : null;
     if (!btn) return;
-    var type = btn.getAttribute("data-type");
-    var val = btn.getAttribute("data-val");
-    if (type === "year" && val !== curYear) {
-      // Keep the same assortment if the new year has it, else its first.
-      var keep = fileFor(val, curAssort) ? curAssort : (assortmentsFor(val)[0] || {}).key;
-      loadCollection(val, keep);
-    } else if (type === "assort" && val !== curAssort) {
-      loadCollection(curYear, val);
+    var key = btn.getAttribute("data-assort");
+    if (key && key !== curAssort) {
+      // Keep the current year if the new assortment has it, else its newest.
+      var keepYear = yearsFor(key).indexOf(curYear) !== -1 ? curYear : null;
+      loadCollection(key, keepYear);
+      window.scrollTo(0, 0);
     }
-    window.scrollTo(0, 0);
+  });
+
+  // --- Year picker (reuses the bottom-sheet pattern) ---
+  function openYearSheet() {
+    var years = yearsFor(curAssort);
+    var rows = "";
+    for (var i = 0; i < years.length; i++) {
+      var on = years[i] === curYear;
+      rows +=
+        '<div class="series-row' + (on ? " active" : "") + '" data-year="' + esc(years[i]) + '">' +
+          '<span class="nm">' + esc(years[i]) + (on ? ' <span class="tick">✓</span>' : "") + "</span>" +
+        "</div>";
+    }
+    $yearList.innerHTML = rows;
+    $yearSheet.classList.add("open");
+  }
+  function closeYearSheet() { $yearSheet.classList.remove("open"); }
+
+  $yearBackdrop.addEventListener("click", closeYearSheet);
+  $yearClose.addEventListener("click", closeYearSheet);
+  $yearList.addEventListener("click", function (e) {
+    var row = e.target.closest ? e.target.closest(".series-row") : null;
+    if (!row) return;
+    var y = row.getAttribute("data-year");
+    closeYearSheet();
+    if (y && y !== curYear) { loadCollection(curAssort, y); window.scrollTo(0, 0); }
   });
 
   // --- Boot: load the manifest, then the default collection ---
@@ -777,11 +832,20 @@
     .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
     .then(function (m) {
       MANIFEST = m || {};
+      if (MANIFEST.file_pattern) FILE_PATTERN = MANIFEST.file_pattern;
+      var list = assortmentList();
+      if (!list.length) throw new Error("manifest has no assortments");
+
       var def = MANIFEST.default || {};
-      var year = def.year || ((MANIFEST.years && MANIFEST.years[0] && MANIFEST.years[0].year) || null);
-      var assort = def.assortment || ((assortmentsFor(year)[0] || {}).key);
-      if (!year || !assort) throw new Error("manifest has no collections");
-      loadCollection(year, assort);
+      var assort = def.assortment && assortmentEntry(def.assortment) ? def.assortment : list[0].key;
+
+      // Default to the current calendar year if the assortment has it, else its
+      // newest year.
+      var years = yearsFor(assort);
+      var thisYear = String(new Date().getFullYear());
+      var year = years.indexOf(thisYear) !== -1 ? thisYear : years[0];
+
+      loadCollection(assort, year);
     })
     .catch(function (err) {
       $grid.innerHTML = '<div class="empty">Couldn\'t load the catalog index.<br>' + esc(err.message) + "</div>";
