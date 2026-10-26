@@ -86,8 +86,9 @@
     cursor: pointer;
   }
   .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
-  /* STH chip stands out in gold even when inactive; solid gold when active. */
-  .chip.sth { background: var(--gold-bg); color: var(--gold); border-color: var(--gold); font-weight: 700; }
+  /* STH chip: gold text/star on the normal dark chip so it reads as a highlight,
+     not a selected state. Fills solid gold only when actually active. */
+  .chip.sth { color: var(--gold); border-color: var(--border); font-weight: 700; }
   .chip.sth.active { background: var(--gold); color: #1a1500; border-color: var(--gold); }
   /* TH chip uses the silver accent when active. */
   .chip.th.active { background: var(--silver); color: #16181d; border-color: var(--silver); }
@@ -214,9 +215,9 @@
   }
   .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
   .tag {
-    font-size: 10px; color: var(--hint);
+    font-size: 11px; color: #c7ccd4;
     background: var(--card2); border: 1px solid var(--border);
-    padding: 2px 7px; border-radius: 6px; white-space: nowrap;
+    padding: 3px 8px; border-radius: 6px; white-space: nowrap;
   }
   .card.th .tag { background: #252830; border-color: #3a3f4a; color: #c4c9d4; }
   .card.sth .tag { background: #342c12; border-color: #4a3f1a; color: #d8c78a; }
@@ -481,6 +482,14 @@
     }
 
     $filters.innerHTML = html;
+
+    // When a series is active, the pill is the last (and widest) chip; scroll
+    // the bar fully right so it's completely visible instead of clipped.
+    if (activeSeries) {
+      $filters.scrollLeft = $filters.scrollWidth;
+    } else {
+      $filters.scrollLeft = 0;
+    }
   }
 
   // --- Series bottom sheet ---
