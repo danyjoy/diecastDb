@@ -46,7 +46,7 @@
     border-bottom: 1px solid var(--border);
   }
   header h1 {
-    margin: 0 0 12px;
+    margin: 0;
     font-size: 26px;
     font-weight: 800;
     letter-spacing: 1px;
@@ -54,6 +54,9 @@
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   }
   header h1 .title-name { line-height: 1.1; }
+  /* Logo sits to the left of the heading. */
+  .titlebar { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; }
+  .titlebar .logo { flex: 0 0 auto; width: 38px; height: 38px; object-fit: contain; display: block; }
   /* Year dropdown button inside the header title. */
   .year-btn {
     display: inline-flex; align-items: center; gap: 5px;
@@ -334,7 +337,10 @@
 </head>
 <body>
   <header>
-    <h1 id="title">Hot Wheels</h1>
+    <div class="titlebar">
+      <img class="logo" src="./logo.svg" alt="" />
+      <h1 id="title">Hot Wheels</h1>
+    </div>
     <div class="searchwrap">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
       <input id="search" class="search" type="search" placeholder="Search series, vehicles, SKU…" autocomplete="off" />
