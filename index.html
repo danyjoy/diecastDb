@@ -19,6 +19,8 @@
     --border: #22252d;
     --gold: #e9b949;
     --gold-bg: #2a2410;
+    --silver: #c4c9d4;
+    --silver-bg: #1e2026;
   }
   /* Light theme — applied only when Telegram reports colorScheme === "light".
      Product shots still sit on white; cards get a light surface. */
@@ -33,6 +35,8 @@
     --border: #e2e4e8;
     --gold: #b8860b;
     --gold-bg: #fbf3d8;
+    --silver: #8a909c;
+    --silver-bg: #eceef1;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; height: 100%; }
@@ -97,7 +101,8 @@
     cursor: pointer;
   }
   .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
-  .chip.th.active { background: var(--gold); color: #1a1500; border-color: var(--gold); }
+  .chip.th.active { background: var(--silver); color: #16181d; border-color: var(--silver); }
+  .chip.sth.active { background: var(--gold); color: #1a1500; border-color: var(--gold); }
 
   /* Collection bar: Year group + Assortment group (what to browse). */
   .collbar {
@@ -137,7 +142,9 @@
     transition: transform .08s ease;
   }
   .card:active { transform: scale(0.98); }
-  .card.th { background: var(--gold-bg); border-color: var(--gold); }
+  /* Treasure Hunt → silver card; Super Treasure Hunt → gold card. */
+  .card.th { background: var(--silver-bg); border-color: var(--silver); }
+  .card.sth { background: var(--gold-bg); border-color: var(--gold); }
 
   .thumb {
     position: relative;
@@ -145,7 +152,8 @@
     aspect-ratio: 1 / 1;
     background: #fff;           /* product shots look best on white, as in the app */
   }
-  .card.th .thumb { background: #f7edcf; }
+  .card.th .thumb { background: #eceef2; }
+  .card.sth .thumb { background: #f7edcf; }
   .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
   .badge {
@@ -157,7 +165,7 @@
     border-radius: 6px;
     letter-spacing: .3px;
   }
-  .badge.th { background: #3fa34d; color: #fff; }
+  .badge.th { background: var(--silver); color: #16181d; }
   .badge.sth { background: var(--gold); color: #1a1500; }
 
   .cardbody { padding: 9px 10px 11px; }
@@ -173,7 +181,9 @@
     background: var(--card2); border: 1px solid var(--border);
     padding: 2px 7px; border-radius: 6px; white-space: nowrap;
   }
-  .card.th .tag { background: #342c12; border-color: #4a3f1a; color: #d8c78a; }
+  .card.th .tag { background: #252830; border-color: #3a3f4a; color: #c4c9d4; }
+  .card.sth .tag { background: #342c12; border-color: #4a3f1a; color: #d8c78a; }
+  .tag.silver { color: var(--silver); border-color: #3a3f4a; }
   .tag.gold { color: var(--gold); border-color: #4a3f1a; }
 
   .empty { grid-column: 1 / -1; text-align: center; color: var(--hint); padding: 40px 20px; }
@@ -227,7 +237,7 @@
   .info .sub { color: var(--accent); font-weight: 700; margin-bottom: 4px; }
   .info .rarity { display: inline-block; margin: 8px 0 4px; font-weight: 700; font-size: 12px;
     padding: 4px 10px; border-radius: 8px; }
-  .info .rarity.th { background: #16331c; color: #6fd27f; }
+  .info .rarity.th { background: var(--silver-bg); color: var(--silver); }
   .info .rarity.sth { background: var(--gold-bg); color: var(--gold); }
 
   .spec { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
@@ -324,7 +334,8 @@
 
   function matches(car) {
     if (activeSeries && car.series_name !== activeSeries) return false;
-    if (rarityFilter === "th" && !rarityClass(car.rarity)) return false;
+    // rarityFilter is null (all), "th" (Treasure Hunt only), or "sth" (Super TH only).
+    if (rarityFilter && rarityClass(car.rarity) !== rarityFilter) return false;
     if (queryText) {
       var hay = [car.title, car.series_name, car.sku, car.casting_number,
                  car.oem, car.rarity, car.body_color, car.mainline_index]
@@ -351,13 +362,16 @@
       var rc = rarityClass(c.rarity);
       var badge = rc === "sth" ? '<span class="badge sth">$TH</span>'
                : rc === "th" ? '<span class="badge th">TH</span>' : "";
+      var rarityTag = rc === "sth"
+        ? '<span class="tag gold">Super TH</span>'
+        : rc === "th" ? '<span class="tag silver">Treasure Hunt</span>' : "";
       var tags =
         '<span class="tag">#' + esc(c.mainline_index) + '</span>' +
         '<span class="tag">' + esc(c.release_year) + '</span>' +
         '<span class="tag">' + esc(c.assortment || "Mainline") + '</span>' +
-        (rc ? '<span class="tag gold">' + (rc === "sth" ? "Super TH" : "Treasure Hunt") + '</span>' : '');
+        rarityTag;
       html +=
-        '<div class="card' + (rc ? ' th' : '') + '" data-id="' + esc(c.id) + '">' +
+        '<div class="card' + (rc ? ' ' + rc : '') + '" data-id="' + esc(c.id) + '">' +
           '<div class="thumb">' + badge +
             (thumb ? '<img loading="lazy" src="' + esc(thumb) + '" alt="">' : "") +
           '</div>' +
@@ -380,17 +394,24 @@
       return counts[b] - counts[a] || a.localeCompare(b);
     });
 
-    var chips = [
-      { key: "__all", label: "All", kind: "all" },
-      { key: "__th", label: "⭐ Treasure Hunts", kind: "th" }
-    ];
+    // Count THs and STHs so each filter chip can show how many there are.
+    var thCount = 0, sthCount = 0;
+    for (var t = 0; t < CARS.length; t++) {
+      var r = rarityClass(CARS[t].rarity);
+      if (r === "th") thCount++; else if (r === "sth") sthCount++;
+    }
+
+    var chips = [{ key: "__all", label: "All", kind: "all" }];
+    if (thCount) chips.push({ key: "__th", label: "Treasure Hunt (" + thCount + ")", kind: "th" });
+    if (sthCount) chips.push({ key: "__sth", label: "Super TH (" + sthCount + ")", kind: "sth" });
     for (var j = 0; j < series.length; j++) {
       chips.push({ key: series[j], label: series[j] + " (" + counts[series[j]] + ")", kind: "series" });
     }
 
     var html = "";
     for (var k = 0; k < chips.length; k++) {
-      html += '<div class="chip' + (chips[k].kind === "th" ? " th" : "") +
+      var extra = chips[k].kind === "th" ? " th" : (chips[k].kind === "sth" ? " sth" : "");
+      html += '<div class="chip' + extra +
               '" data-key="' + esc(chips[k].key) + '" data-kind="' +
               chips[k].kind + '">' + esc(chips[k].label) + "</div>";
     }
@@ -405,6 +426,7 @@
       var key = nodes[i].getAttribute("data-key");
       var on = (kind === "all" && !activeSeries && !rarityFilter) ||
                (kind === "th" && rarityFilter === "th") ||
+               (kind === "sth" && rarityFilter === "sth") ||
                (kind === "series" && activeSeries === key);
       nodes[i].classList.toggle("active", !!on);
     }
@@ -494,6 +516,7 @@
     var key = chip.getAttribute("data-key");
     if (kind === "all") { activeSeries = null; rarityFilter = null; }
     else if (kind === "th") { rarityFilter = (rarityFilter === "th" ? null : "th"); activeSeries = null; }
+    else if (kind === "sth") { rarityFilter = (rarityFilter === "sth" ? null : "sth"); activeSeries = null; }
     else if (kind === "series") { activeSeries = (activeSeries === key ? null : key); rarityFilter = null; }
     syncChips();
     render();
