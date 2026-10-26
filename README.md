@@ -81,3 +81,20 @@ manifest.
 
 Catalog data is the publicly listed Hot Wheels info from
 [findmyhw.com](https://findmyhw.com); images are hotlinked from there.
+
+## Trademarks & disclaimer
+
+This is an unofficial, non-commercial fan-made tool for personally browsing and
+tracking a die-cast collection. It is **not affiliated with, endorsed by, or
+sponsored by** Mattel, Inc. or findmyhw.com.
+
+"Hot Wheels", the Hot Wheels logo, "Treasure Hunt", "Super Treasure Hunt",
+"Boulevard", "Car Culture", "Silver Series", and all related names, logos,
+casting names, and marks are trademarks and/or copyrights of **Mattel, Inc.**
+or their respective owners. The logo and all product images, names, and catalog
+data belong to their respective companies and rights holders and are used here
+for identification and reference purposes only. All rights remain with their
+respective owners.
+
+If you are a rights holder and would like something removed, please open an
+issue on the repository.
