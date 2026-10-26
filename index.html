@@ -21,8 +21,9 @@
     --gold-bg: #2a2410;
     --silver: #c4c9d4;
     --silver-bg: #1e2026;
-    --chase: #b388ff;
-    --chase-bg: #241a33;
+    /* Chase uses the same gold treatment as Super TH. */
+    --chase: #e9b949;
+    --chase-bg: #2a2410;
   }
   /* Always dark — we intentionally do not follow Telegram's light theme. */
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -108,7 +109,7 @@
   .chip.th.active { background: var(--silver); color: #16181d; border-color: var(--silver); }
   /* Chase chip (premium): violet highlight, solid when active. */
   .chip.chase { color: var(--chase); border-color: var(--border); font-weight: 700; }
-  .chip.chase.active { background: var(--chase); color: #1a0f2e; border-color: var(--chase); }
+  .chip.chase.active { background: var(--chase); color: #1a1500; border-color: var(--chase); }
 
   /* "Series ▾" dropdown pill — opens the bottom sheet. Shows the chosen series
      (with an × to clear) when one is active, so the long list stays hidden. */
@@ -209,7 +210,7 @@
   }
   .card.th .thumb { background: #eceef2; }
   .card.sth .thumb { background: #f7edcf; }
-  .card.chase .thumb { background: #efe8fb; }
+  .card.chase .thumb { background: #f7edcf; }
   .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
   .badge {
@@ -223,7 +224,7 @@
   }
   .badge.th { background: var(--silver); color: #16181d; }
   .badge.sth { background: var(--gold); color: #1a1500; }
-  .badge.chase { background: var(--chase); color: #1a0f2e; }
+  .badge.chase { background: var(--chase); color: #1a1500; }
 
   .cardbody { padding: 9px 10px 11px; }
   .cardbody .title {
@@ -240,10 +241,10 @@
   }
   .card.th .tag { background: #252830; border-color: #3a3f4a; color: #c4c9d4; }
   .card.sth .tag { background: #342c12; border-color: #4a3f1a; color: #d8c78a; }
-  .card.chase .tag { background: #2c2142; border-color: #463464; color: #cdb8f5; }
+  .card.chase .tag { background: #342c12; border-color: #4a3f1a; color: #d8c78a; }
   .tag.silver { color: var(--silver); border-color: #3a3f4a; }
   .tag.gold { color: var(--gold); border-color: #4a3f1a; }
-  .tag.chase { color: var(--chase); border-color: #463464; }
+  .tag.chase { color: var(--chase); border-color: #4a3f1a; }
 
   .empty { grid-column: 1 / -1; text-align: center; color: var(--hint); padding: 40px 20px; }
 
