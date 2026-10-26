@@ -390,15 +390,27 @@
   var MANIFEST = null;       // data/index.json
   var curYear = null;        // selected year (string)
   var curAssort = null;      // selected assortment key (string)
-  var GROUP_FIELD = "series_name"; // which car field the "Series" filter groups by
-  var SOFT_CHASE_ON = false;       // collection has soft chases (Silver Series)
-  var SOFT_CHASE = {};             // set of car ids that are soft chases
+  // Two-level grouping. Mainline is one level (series_name). Premium / Silver
+  // Series are two levels: group = assortment (Car Culture, Fast & Furious, …),
+  // subgroup = series_name (Nitro Grid, World Tour, …). An assortment like
+  // Boulevard has no inner series, so its subgroup list is simply empty.
+  var GROUP_FIELD = "series_name";   // first-level field
+  var GROUP_LABEL = "Series";        // first-level pill label
+  var SUBGROUP_FIELD = null;         // second-level field (null = single level)
+  var SUBGROUP_LABEL = "Series";     // second-level pill label
+  var SOFT_CHASE_ON = false;         // collection has soft chases (Silver Series)
+  var SOFT_CHASE = {};               // set of car ids that are soft chases
 
-  // The series/grouping value for a car, per the current collection's group_by
-  // (mainline → series_name; premium → assortment sub-line).
-  function seriesOf(car) {
+  var activeSub = null;              // selected second-level value (null = all)
+
+  function groupOf(car) {
     return (car[GROUP_FIELD] || "").toString().trim();
   }
+  function subOf(car) {
+    return SUBGROUP_FIELD ? (car[SUBGROUP_FIELD] || "").toString().trim() : "";
+  }
+  // Back-compat alias used elsewhere: the first-level grouping value.
+  function seriesOf(car) { return groupOf(car); }
 
   function isMetalBase(car) {
     return String(car.base_material || "").toLowerCase() === "metal";
@@ -465,7 +477,8 @@
   }
 
   function matches(car) {
-    if (activeSeries && seriesOf(car) !== activeSeries) return false;
+    if (activeSeries && groupOf(car) !== activeSeries) return false;
+    if (activeSub && subOf(car) !== activeSub) return false;
     // rarityFilter: null (all), "th"/"sth"/"chase" (rarity), or "soft" (soft chase).
     if (rarityFilter === "soft") { if (!isSoftChase(car)) return false; }
     else if (rarityFilter && rarityClass(car.rarity) !== rarityFilter) return false;
@@ -535,22 +548,30 @@
     $grid.innerHTML = html;
   }
 
-  // SERIES is rebuilt per collection: [{ name, count }, ...] sorted by count.
-  var SERIES = [];
+  // GROUPS: first-level values with counts. SUBGROUPS: second-level values for
+  // the currently selected group (empty when single-level or none exist).
+  var GROUPS = [];
+  var SUBGROUPS = [];
 
-  function buildSeriesChips() {
-    // Only count cars that actually name a series. Assortments like Boulevard
-    // have no series, so SERIES stays empty and the Series filter is hidden.
+  function countBy(field, scope) {
     var counts = {};
     for (var i = 0; i < CARS.length; i++) {
-      var s = seriesOf(CARS[i]);
-      if (!s) continue;
-      counts[s] = (counts[s] || 0) + 1;
+      var c = CARS[i];
+      if (scope && groupOf(c) !== scope) continue;
+      var v = (c[field] || "").toString().trim();
+      if (!v) continue;
+      counts[v] = (counts[v] || 0) + 1;
     }
-    SERIES = Object.keys(counts)
+    return Object.keys(counts)
       .map(function (n) { return { name: n, count: counts[n] }; })
       .sort(function (a, b) { return b.count - a.count || a.name.localeCompare(b.name); });
+  }
 
+  function buildSeriesChips() {
+    GROUPS = countBy(GROUP_FIELD, null);
+    // Subgroups are scoped to the active group (the series inside the chosen
+    // assortment). Only meaningful on two-level collections with a group picked.
+    SUBGROUPS = (SUBGROUP_FIELD && activeSeries) ? countBy(SUBGROUP_FIELD, activeSeries) : [];
     renderFilters();
   }
 
@@ -566,7 +587,7 @@
       else if (r === "chase") chaseCount++;
     }
 
-    var html = '<div class="chip' + (!activeSeries && !rarityFilter ? " active" : "") +
+    var html = '<div class="chip' + (!activeSeries && !activeSub && !rarityFilter ? " active" : "") +
                '" data-kind="all">All</div>';
     // Super TH first — it's the rarest/most important. The chip is gold-styled
     // even when inactive so it stands out in the bar.
@@ -585,17 +606,31 @@
                              '" data-kind="soft">Soft Chase (' + softCount + ")</div>";
     }
 
-    // Series picker pill — only when this collection actually has series
-    // (e.g. Mainline). Assortments without series (Boulevard) skip it.
-    if (SERIES.length) {
+    // First-level picker pill (Series for mainline, Assortment for premium/silver).
+    if (GROUPS.length) {
       if (activeSeries) {
-        html += '<div class="chip series-pick active" data-kind="series-open">' +
+        html += '<div class="chip series-pick active" data-kind="group-open">' +
                   esc(activeSeries) +
-                  '<span class="clear" data-kind="series-clear">✕</span>' +
+                  '<span class="clear" data-kind="group-clear">✕</span>' +
                 '</div>';
       } else {
-        html += '<div class="chip series-pick" data-kind="series-open">' +
-                  'Series <span class="caret">▾</span>' +
+        html += '<div class="chip series-pick" data-kind="group-open">' +
+                  esc(GROUP_LABEL) + ' <span class="caret">▾</span>' +
+                '</div>';
+      }
+    }
+
+    // Second-level picker pill — only on two-level collections, once a group is
+    // chosen and that group actually has inner series (Boulevard won't).
+    if (SUBGROUP_FIELD && activeSeries && SUBGROUPS.length) {
+      if (activeSub) {
+        html += '<div class="chip series-pick active" data-kind="sub-open">' +
+                  esc(activeSub) +
+                  '<span class="clear" data-kind="sub-clear">✕</span>' +
+                '</div>';
+      } else {
+        html += '<div class="chip series-pick" data-kind="sub-open">' +
+                  esc(SUBGROUP_LABEL) + ' <span class="caret">▾</span>' +
                 '</div>';
       }
     }
@@ -604,30 +639,43 @@
 
     // When a series is active, the pill is the last (and widest) chip; scroll
     // the bar fully right so it's completely visible instead of clipped.
-    if (activeSeries) {
+    if (activeSeries || activeSub) {
       $filters.scrollLeft = $filters.scrollWidth;
     } else {
       $filters.scrollLeft = 0;
     }
   }
 
-  // --- Series bottom sheet ---
+  // --- Picker bottom sheet (shared by the group and subgroup pickers) ---
 
-  // Render the series rows, optionally filtered by the sheet's search box.
-  // Includes an "All series" row at the top to clear the filter.
+  var sheetMode = "group"; // "group" (first level) or "sub" (second level)
+
+  function sheetItems() { return sheetMode === "sub" ? SUBGROUPS : GROUPS; }
+  function sheetSelected() { return sheetMode === "sub" ? activeSub : activeSeries; }
+  function sheetTitle() {
+    return sheetMode === "sub" ? SUBGROUP_LABEL : GROUP_LABEL;
+  }
+
+  // Render the picker rows, optionally filtered by the sheet's search box.
+  // An "All" row at the top clears the current level's filter.
   function renderSeriesList(filterText) {
     var q = String(filterText || "").toLowerCase().trim();
+    var items = sheetItems();
+    var sel = sheetSelected();
+    var allCount = 0;
+    for (var a = 0; a < items.length; a++) allCount += items[a].count;
+
     var rows =
-      '<div class="series-row' + (!activeSeries ? " active" : "") +
-      '" data-series="__all"><span class="nm">All series</span>' +
-      '<span class="ct">' + CARS.length + "</span></div>";
+      '<div class="series-row' + (!sel ? " active" : "") +
+      '" data-series="__all"><span class="nm">All ' + esc(sheetTitle().toLowerCase()) +
+      '</span><span class="ct">' + allCount + "</span></div>";
 
     var shown = 0;
-    for (var i = 0; i < SERIES.length; i++) {
-      var s = SERIES[i];
+    for (var i = 0; i < items.length; i++) {
+      var s = items[i];
       if (q && s.name.toLowerCase().indexOf(q) === -1) continue;
       shown++;
-      var on = activeSeries === s.name;
+      var on = sel === s.name;
       rows +=
         '<div class="series-row' + (on ? " active" : "") +
         '" data-series="' + esc(s.name) + '">' +
@@ -636,13 +684,15 @@
         "</div>";
     }
     if (q && shown === 0) {
-      rows += '<div class="empty">No series match “' + esc(filterText) + '”.</div>';
+      rows += '<div class="empty">No matches for “' + esc(filterText) + '”.</div>';
     }
     $seriesList.innerHTML = rows;
   }
 
-  function openSeriesSheet() {
+  function openSeriesSheet(mode) {
+    sheetMode = mode || "group";
     $seriesSearch.value = "";
+    $seriesSearch.placeholder = "Find a " + sheetTitle().toLowerCase() + "…";
     renderSeriesList("");
     $sheet.classList.add("open");
     $seriesList.scrollTop = 0;
@@ -667,10 +717,16 @@
     var row = e.target.closest ? e.target.closest(".series-row") : null;
     if (!row) return;
     var name = row.getAttribute("data-series");
-    activeSeries = (name === "__all") ? null : name;
+    var pick = (name === "__all") ? null : name;
+    if (sheetMode === "sub") {
+      activeSub = pick;
+    } else {
+      activeSeries = pick;
+      activeSub = null; // changing the group resets the sub-selection
+    }
     rarityFilter = null;
     closeSeriesSheet();
-    renderFilters();
+    buildSeriesChips(); // recompute SUBGROUPS for the (possibly new) group
     render();
     window.scrollTo(0, 0);
   });
@@ -774,24 +830,29 @@
   });
 
   $filters.addEventListener("click", function (e) {
-    // The clear (✕) lives inside the active series pill; handle it first.
-    if (e.target && e.target.getAttribute("data-kind") === "series-clear") {
-      activeSeries = null;
-      renderFilters();
-      render();
-      window.scrollTo(0, 0);
+    // Clear (✕) buttons live inside the active pills; handle them first.
+    var clearKind = e.target && e.target.getAttribute("data-kind");
+    if (clearKind === "group-clear") {
+      activeSeries = null; activeSub = null;
+      buildSeriesChips(); render(); window.scrollTo(0, 0);
+      return;
+    }
+    if (clearKind === "sub-clear") {
+      activeSub = null;
+      buildSeriesChips(); render(); window.scrollTo(0, 0);
       return;
     }
     var chip = e.target.closest ? e.target.closest(".chip") : null;
     if (!chip) return;
     var kind = chip.getAttribute("data-kind");
-    if (kind === "all") { activeSeries = null; rarityFilter = null; }
-    else if (kind === "th") { rarityFilter = (rarityFilter === "th" ? null : "th"); activeSeries = null; }
-    else if (kind === "sth") { rarityFilter = (rarityFilter === "sth" ? null : "sth"); activeSeries = null; }
-    else if (kind === "chase") { rarityFilter = (rarityFilter === "chase" ? null : "chase"); activeSeries = null; }
-    else if (kind === "soft") { rarityFilter = (rarityFilter === "soft" ? null : "soft"); activeSeries = null; }
-    else if (kind === "series-open") { openSeriesSheet(); return; }
-    renderFilters();
+    if (kind === "all") { activeSeries = null; activeSub = null; rarityFilter = null; }
+    else if (kind === "th") { rarityFilter = (rarityFilter === "th" ? null : "th"); activeSeries = null; activeSub = null; }
+    else if (kind === "sth") { rarityFilter = (rarityFilter === "sth" ? null : "sth"); activeSeries = null; activeSub = null; }
+    else if (kind === "chase") { rarityFilter = (rarityFilter === "chase" ? null : "chase"); activeSeries = null; activeSub = null; }
+    else if (kind === "soft") { rarityFilter = (rarityFilter === "soft" ? null : "soft"); activeSeries = null; activeSub = null; }
+    else if (kind === "group-open") { openSeriesSheet("group"); return; }
+    else if (kind === "sub-open") { openSeriesSheet("sub"); return; }
+    buildSeriesChips();
     render();
     window.scrollTo(0, 0);
   });
@@ -881,11 +942,14 @@
     }
     curAssort = assortKey;
     curYear = String(year);
-    activeSeries = null; rarityFilter = null;
+    activeSeries = null; activeSub = null; rarityFilter = null;
 
-    // Which field this collection groups its "Series" filter by.
+    // How this collection groups its filters (one or two levels).
     var entry = assortmentEntry(assortKey);
     GROUP_FIELD = (entry && entry.group_by) || "series_name";
+    GROUP_LABEL = (entry && entry.group_label) || "Series";
+    SUBGROUP_FIELD = (entry && entry.subgroup_by) || null;
+    SUBGROUP_LABEL = (entry && entry.subgroup_label) || "Series";
     SOFT_CHASE_ON = !!(entry && entry.soft_chase);
 
     renderAssortMenu();
