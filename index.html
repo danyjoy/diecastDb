@@ -3,17 +3,21 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
 <title>Hot Wheels Mainline</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root {
-    /* Fallbacks; overridden at runtime from Telegram theme params. */
-    --bg: #17212b;
-    --text: #f5f5f5;
-    --hint: #7d8b99;
-    --card: #232e3c;
-    --accent: #5eb5f7;
-    --border: #0e1621;
+    --bg: #000000;
+    --bg2: #0c0d10;
+    --text: #ffffff;
+    --hint: #8a8f98;
+    --card: #15171c;
+    --card2: #1c1f26;
+    --accent: #2f8fff;
+    --border: #22252d;
+    --gold: #e9b949;
+    --gold-bg: #2a2410;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; height: 100%; }
@@ -22,21 +26,35 @@
     color: var(--text);
     font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding-bottom: env(safe-area-inset-bottom);
+    -webkit-font-smoothing: antialiased;
   }
 
+  /* ---------- Header ---------- */
   header {
     position: sticky;
     top: 0;
     z-index: 10;
     background: var(--bg);
-    padding: 10px 12px 8px;
+    padding: 14px 16px 10px;
     border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0 0 12px;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .searchwrap { position: relative; }
+  .searchwrap svg {
+    position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+    width: 17px; height: 17px; fill: none; stroke: var(--hint); stroke-width: 2;
   }
   .search {
     width: 100%;
-    padding: 10px 12px;
+    padding: 11px 14px 11px 38px;
     font-size: 16px; /* >=16px stops iOS zoom-on-focus */
-    border-radius: 10px;
+    border-radius: 12px;
     border: 1px solid var(--border);
     background: var(--card);
     color: var(--text);
@@ -48,13 +66,13 @@
     display: flex;
     gap: 8px;
     overflow-x: auto;
-    padding: 8px 2px 2px;
+    padding: 12px 0 2px;
     scrollbar-width: none;
   }
   .filters::-webkit-scrollbar { display: none; }
   .chip {
     flex: 0 0 auto;
-    padding: 6px 12px;
+    padding: 7px 14px;
     border-radius: 999px;
     border: 1px solid var(--border);
     background: var(--card);
@@ -63,85 +81,136 @@
     white-space: nowrap;
     cursor: pointer;
   }
-  .chip.active { background: var(--accent); color: #0b1520; border-color: var(--accent); font-weight: 600; }
+  .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  .chip.th.active { background: var(--gold); color: #1a1500; border-color: var(--gold); }
 
-  .count { color: var(--hint); font-size: 12px; padding: 6px 2px 0; }
+  .count { color: var(--hint); font-size: 12px; padding: 10px 0 0; }
 
+  /* ---------- Grid ---------- */
   .grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    padding: 12px;
+    gap: 12px;
+    padding: 14px 16px 24px;
   }
-  @media (min-width: 520px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 560px) { .grid { grid-template-columns: repeat(3, 1fr); } }
 
   .card {
     background: var(--card);
-    border-radius: 12px;
+    border-radius: 14px;
     overflow: hidden;
     cursor: pointer;
     display: flex;
     flex-direction: column;
     border: 1px solid var(--border);
+    transition: transform .08s ease;
   }
+  .card:active { transform: scale(0.98); }
+  .card.th { background: var(--gold-bg); border-color: var(--gold); }
+
   .thumb {
     position: relative;
     width: 100%;
     aspect-ratio: 1 / 1;
-    background: #0e1621;
+    background: #fff;           /* product shots look best on white, as in the app */
   }
-  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card.th .thumb { background: #f7edcf; }
+  .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
   .badge {
     position: absolute;
-    top: 6px; left: 6px;
+    top: 7px; left: 7px;
     font-size: 10px;
-    font-weight: 700;
-    padding: 2px 6px;
+    font-weight: 800;
+    padding: 3px 7px;
     border-radius: 6px;
-    color: #0b1520;
+    letter-spacing: .3px;
   }
-  .badge.th { background: #4caf50; }
-  .badge.sth { background: #ffd54a; }
-  .cardbody { padding: 8px 9px 10px; }
-  .cardbody .idx { color: var(--accent); font-size: 11px; font-weight: 700; }
-  .cardbody .title { font-weight: 600; font-size: 13px; margin: 2px 0 3px; }
-  .cardbody .series { color: var(--hint); font-size: 11px; }
+  .badge.th { background: #3fa34d; color: #fff; }
+  .badge.sth { background: var(--gold); color: #1a1500; }
 
-  .empty { text-align: center; color: var(--hint); padding: 40px 20px; }
+  .cardbody { padding: 9px 10px 11px; }
+  .cardbody .title {
+    font-weight: 700; font-size: 13px; text-transform: uppercase;
+    letter-spacing: .3px; line-height: 1.25;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; min-height: 2.5em;
+  }
+  .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+  .tag {
+    font-size: 10px; color: var(--hint);
+    background: var(--card2); border: 1px solid var(--border);
+    padding: 2px 7px; border-radius: 6px; white-space: nowrap;
+  }
+  .card.th .tag { background: #342c12; border-color: #4a3f1a; color: #d8c78a; }
+  .tag.gold { color: var(--gold); border-color: #4a3f1a; }
 
-  /* Detail overlay */
+  .empty { grid-column: 1 / -1; text-align: center; color: var(--hint); padding: 40px 20px; }
+
+  /* ---------- Detail overlay ---------- */
   .detail {
     position: fixed; inset: 0;
     background: var(--bg);
     z-index: 20;
     display: none;
     flex-direction: column;
-    overflow-y: auto;
   }
   .detail.open { display: flex; }
-  .detail .hero { width: 100%; aspect-ratio: 1 / 1; background: #0e1621; }
-  .detail .hero img { width: 100%; height: 100%; object-fit: contain; }
-  .detail .gallery {
-    display: flex; gap: 6px; overflow-x: auto; padding: 8px 12px;
-    scrollbar-width: none;
+
+  .dbar {
+    position: sticky; top: 0; z-index: 2;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
   }
-  .detail .gallery::-webkit-scrollbar { display: none; }
-  .detail .gallery img {
-    height: 56px; width: 56px; object-fit: cover; border-radius: 8px;
-    border: 2px solid transparent; cursor: pointer; flex: 0 0 auto;
+  .backbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--text); font-size: 15px; font-weight: 600;
+    padding: 8px 14px 8px 10px; border-radius: 10px; cursor: pointer;
   }
-  .detail .gallery img.sel { border-color: var(--accent); }
-  .detail .info { padding: 4px 16px 24px; }
-  .detail .info h2 { margin: 6px 0 2px; font-size: 20px; }
-  .detail .info .sub { color: var(--accent); font-weight: 600; margin-bottom: 14px; }
-  .spec { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .backbtn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; }
+
+  .dscroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+  .hero { width: 100%; aspect-ratio: 1 / 1; background: #fff; }
+  .hero img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+  .gallery {
+    display: flex; gap: 8px; overflow-x: auto;
+    padding: 12px 16px; scrollbar-width: none;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+  }
+  .gallery::-webkit-scrollbar { display: none; }
+  .gallery img {
+    height: 60px; width: 60px; object-fit: contain; background: #fff;
+    border-radius: 10px; border: 2px solid transparent; cursor: pointer;
+    flex: 0 0 auto; padding: 3px;
+  }
+  .gallery img.sel { border-color: var(--accent); }
+
+  .info { padding: 16px 16px 40px; }
+  .info h2 { margin: 2px 0 4px; font-size: 22px; font-weight: 800; text-transform: uppercase; }
+  .info .sub { color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+  .info .rarity { display: inline-block; margin: 8px 0 4px; font-weight: 700; font-size: 12px;
+    padding: 4px 10px; border-radius: 8px; }
+  .info .rarity.th { background: #16331c; color: #6fd27f; }
+  .info .rarity.sth { background: var(--gold-bg); color: var(--gold); }
+
+  .spec { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
   .spec .k { color: var(--hint); }
-  .spec .v { text-align: right; }
+  .spec .v { text-align: right; font-weight: 600; }
 </style>
 </head>
 <body>
   <header>
-    <input id="search" class="search" type="search" placeholder="Search name, series, SKU, OEM…" autocomplete="off" />
+    <h1>Discover</h1>
+    <div class="searchwrap">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+      <input id="search" class="search" type="search" placeholder="Search series, vehicles, SKU…" autocomplete="off" />
+    </div>
     <div id="filters" class="filters"></div>
     <div id="count" class="count"></div>
   </header>
@@ -149,9 +218,17 @@
   <div id="grid" class="grid"></div>
 
   <div id="detail" class="detail">
-    <div class="hero"><img id="heroImg" alt="" /></div>
-    <div id="gallery" class="gallery"></div>
-    <div id="info" class="info"></div>
+    <div class="dbar">
+      <button id="backBtn" class="backbtn" type="button">
+        <svg viewBox="0 0 24 24"><polyline points="15 5 8 12 15 19"/></svg>
+        Back
+      </button>
+    </div>
+    <div class="dscroll">
+      <div class="hero"><img id="heroImg" alt="" /></div>
+      <div id="gallery" class="gallery"></div>
+      <div id="info" class="info"></div>
+    </div>
   </div>
 
 <script>
@@ -160,24 +237,14 @@
 
   var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
-  // Adopt Telegram's theme colours so the app matches the user's client.
-  function applyTheme() {
-    if (!tg) return;
-    var p = tg.themeParams || {};
-    var root = document.documentElement.style;
-    if (p.bg_color) root.setProperty("--bg", p.bg_color);
-    if (p.text_color) root.setProperty("--text", p.text_color);
-    if (p.hint_color) root.setProperty("--hint", p.hint_color);
-    if (p.secondary_bg_color) root.setProperty("--card", p.secondary_bg_color);
-    if (p.button_color) root.setProperty("--accent", p.button_color);
-    if (p.section_separator_color) root.setProperty("--border", p.section_separator_color);
-  }
-
+  // Fixed dark theme to match the reference UI — we intentionally do NOT adopt
+  // Telegram's theme params (which could be light). We only ask Telegram to
+  // render its own chrome dark so the app blends in.
   if (tg) {
     tg.ready();
     tg.expand();
-    applyTheme();
-    tg.onEvent("themeChanged", applyTheme);
+    try { tg.setHeaderColor && tg.setHeaderColor("#000000"); } catch (e) {}
+    try { tg.setBackgroundColor && tg.setBackgroundColor("#000000"); } catch (e) {}
   }
 
   var CARS = [];
@@ -193,6 +260,8 @@
   var $heroImg = document.getElementById("heroImg");
   var $gallery = document.getElementById("gallery");
   var $info = document.getElementById("info");
+  var $dscroll = document.querySelector(".dscroll");
+  var $backBtn = document.getElementById("backBtn");
 
   function esc(s) {
     return String(s == null ? "" : s)
@@ -221,10 +290,10 @@
 
   function render() {
     var list = CARS.filter(matches);
-    $count.textContent = list.length + (list.length === 1 ? " car" : " cars");
+    $count.textContent = list.length + (list.length === 1 ? " vehicle" : " vehicles");
 
     if (list.length === 0) {
-      $grid.innerHTML = '<div class="empty">No cars match.</div>';
+      $grid.innerHTML = '<div class="empty">No vehicles match.</div>';
       return;
     }
 
@@ -233,17 +302,21 @@
       var c = list[i];
       var thumb = (c.images && c.images[0]) || "";
       var rc = rarityClass(c.rarity);
-      var badge = rc === "sth" ? '<span class="badge sth">STH</span>'
+      var badge = rc === "sth" ? '<span class="badge sth">$TH</span>'
                : rc === "th" ? '<span class="badge th">TH</span>' : "";
+      var tags =
+        '<span class="tag">#' + esc(c.mainline_index) + '</span>' +
+        '<span class="tag">' + esc(c.release_year) + '</span>' +
+        '<span class="tag">' + esc(c.assortment || "Mainline") + '</span>' +
+        (rc ? '<span class="tag gold">' + (rc === "sth" ? "Super TH" : "Treasure Hunt") + '</span>' : '');
       html +=
-        '<div class="card" data-id="' + esc(c.id) + '">' +
+        '<div class="card' + (rc ? ' th' : '') + '" data-id="' + esc(c.id) + '">' +
           '<div class="thumb">' + badge +
             (thumb ? '<img loading="lazy" src="' + esc(thumb) + '" alt="">' : "") +
           '</div>' +
           '<div class="cardbody">' +
-            '<div class="idx">#' + esc(c.mainline_index) + '</div>' +
             '<div class="title">' + esc(c.title) + '</div>' +
-            '<div class="series">' + esc(c.series_name) + '</div>' +
+            '<div class="tags">' + tags + '</div>' +
           '</div>' +
         '</div>';
     }
@@ -270,7 +343,8 @@
 
     var html = "";
     for (var k = 0; k < chips.length; k++) {
-      html += '<div class="chip" data-key="' + esc(chips[k].key) + '" data-kind="' +
+      html += '<div class="chip' + (chips[k].kind === "th" ? " th" : "") +
+              '" data-key="' + esc(chips[k].key) + '" data-kind="' +
               chips[k].kind + '">' + esc(chips[k].label) + "</div>";
     }
     $filters.innerHTML = html;
@@ -299,6 +373,8 @@
       g += '<img data-src="' + esc(imgs[i]) + '" class="' + (i === 0 ? "sel" : "") +
            '" src="' + esc(imgs[i]) + '" alt="">';
     }
+    // Hide the gallery strip entirely when there's 0 or 1 image.
+    $gallery.style.display = imgs.length > 1 ? "flex" : "none";
     $gallery.innerHTML = g;
     $gallery.onclick = function (e) {
       var t = e.target;
@@ -314,10 +390,11 @@
       if (v == null || v === "") return "";
       return '<div class="spec"><span class="k">' + esc(k) + '</span><span class="v">' + esc(v) + "</span></div>";
     }
+    var rc = rarityClass(car.rarity);
     $info.innerHTML =
       "<h2>" + esc(car.title) + "</h2>" +
       '<div class="sub">#' + esc(car.mainline_index) + " · " + esc(car.series_name) + "</div>" +
-      (car.rarity ? row("Rarity", car.rarity) : "") +
+      (rc ? '<div class="rarity ' + rc + '">' + esc(car.rarity) + "</div>" : "") +
       row("Series #", car.series_index) +
       row("SKU", car.sku) +
       row("Casting #", car.casting_number) +
@@ -333,8 +410,10 @@
       row("Year", car.release_year);
 
     $detail.classList.add("open");
-    window.scrollTo(0, 0);
+    $dscroll.scrollTop = 0;
 
+    // Telegram's native BackButton only renders inside the Telegram client; the
+    // in-page Back bar covers the browser/preview case, so both paths work.
     if (tg && tg.BackButton) {
       tg.BackButton.show();
       tg.BackButton.onClick(closeDetail);
@@ -350,6 +429,8 @@
   }
 
   // --- Events ---
+  $backBtn.addEventListener("click", closeDetail);
+
   $grid.addEventListener("click", function (e) {
     var card = e.target.closest ? e.target.closest(".card") : null;
     if (!card) return;
