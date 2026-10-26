@@ -1,0 +1,12 @@
+{
+  "updated_at": "2026-10-26",
+  "default": { "year": "2026", "assortment": "mainline" },
+  "years": [
+    {
+      "year": "2026",
+      "assortments": [
+        { "key": "mainline", "label": "Mainline", "file": "2026/mainline.json" }
+      ]
+    }
+  ]
+}

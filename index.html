@@ -99,6 +99,22 @@
   .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
   .chip.th.active { background: var(--gold); color: #1a1500; border-color: var(--gold); }
 
+  /* Collection bar: Year group + Assortment group (what to browse). */
+  .collbar {
+    display: flex; gap: 14px; overflow-x: auto;
+    padding: 12px 0 0; scrollbar-width: none;
+  }
+  .collbar::-webkit-scrollbar { display: none; }
+  .collgroup { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+  .collgroup .lbl { font-size: 11px; color: var(--hint); text-transform: uppercase; letter-spacing: .5px; }
+  .collbtn {
+    flex: 0 0 auto; padding: 6px 12px; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--card2);
+    color: var(--text); font-size: 13px; font-weight: 600;
+    white-space: nowrap; cursor: pointer;
+  }
+  .collbtn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
   .count { color: var(--hint); font-size: 12px; padding: 10px 0 0; }
 
   /* ---------- Grid ---------- */
@@ -226,6 +242,7 @@
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
       <input id="search" class="search" type="search" placeholder="Search series, vehicles, SKU…" autocomplete="off" />
     </div>
+    <div id="collbar" class="collbar"></div>
     <div id="filters" class="filters"></div>
     <div id="count" class="count"></div>
   </header>
@@ -277,7 +294,12 @@
   var rarityFilter = null;   // null | "th" (TH + STH)
   var queryText = "";
 
+  var MANIFEST = null;       // data/index.json
+  var curYear = null;        // selected year (string)
+  var curAssort = null;      // selected assortment key (string)
+
   var $search = document.getElementById("search");
+  var $collbar = document.getElementById("collbar");
   var $filters = document.getElementById("filters");
   var $grid = document.getElementById("grid");
   var $count = document.getElementById("count");
@@ -487,25 +509,119 @@
     }, 120);
   });
 
-  // --- Load data ---
-  // Catalog snapshot committed alongside this page (data/mainline.json).
-  fetch("./data/mainline.json", { cache: "no-store" })
-    .then(function (r) {
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.json();
-    })
-    .then(function (data) {
-      CARS = (data && Array.isArray(data.cars)) ? data.cars : [];
-      CARS.sort(function (a, b) {
-        var ai = parseInt(a.mainline_index, 10), bi = parseInt(b.mainline_index, 10);
-        if (isNaN(ai)) ai = 1e9; if (isNaN(bi)) bi = 1e9;
-        return ai - bi;
+  // --- Collections (year + assortment), driven by data/index.json ---
+
+  function yearEntry(year) {
+    var ys = (MANIFEST && MANIFEST.years) || [];
+    for (var i = 0; i < ys.length; i++) if (String(ys[i].year) === String(year)) return ys[i];
+    return null;
+  }
+
+  function assortmentsFor(year) {
+    var y = yearEntry(year);
+    return (y && Array.isArray(y.assortments)) ? y.assortments : [];
+  }
+
+  function fileFor(year, assortKey) {
+    var list = assortmentsFor(year);
+    for (var i = 0; i < list.length; i++) if (list[i].key === assortKey) return list[i].file;
+    return null;
+  }
+
+  // Render the Year group + Assortment group. The assortment buttons reflect
+  // whatever the selected year offers, so a year with only mainline shows one.
+  function renderCollbar() {
+    var years = ((MANIFEST && MANIFEST.years) || []).map(function (y) { return String(y.year); });
+    var html = "";
+
+    if (years.length > 1) {
+      html += '<div class="collgroup"><span class="lbl">Year</span>';
+      for (var i = 0; i < years.length; i++) {
+        html += '<button class="collbtn' + (years[i] === curYear ? " active" : "") +
+                '" data-type="year" data-val="' + esc(years[i]) + '">' + esc(years[i]) + "</button>";
+      }
+      html += "</div>";
+    }
+
+    var assorts = assortmentsFor(curYear);
+    if (assorts.length > 1) {
+      html += '<div class="collgroup"><span class="lbl">Type</span>';
+      for (var j = 0; j < assorts.length; j++) {
+        html += '<button class="collbtn' + (assorts[j].key === curAssort ? " active" : "") +
+                '" data-type="assort" data-val="' + esc(assorts[j].key) + '">' +
+                esc(assorts[j].label || assorts[j].key) + "</button>";
+      }
+      html += "</div>";
+    }
+
+    $collbar.innerHTML = html;
+    $collbar.style.display = html ? "flex" : "none";
+  }
+
+  // Fetch and show one collection file. Resets series/rarity filters since the
+  // series list differs per collection.
+  function loadCollection(year, assortKey) {
+    var file = fileFor(year, assortKey);
+    if (!file) {
+      // Fall back to the first assortment the year does have.
+      var list = assortmentsFor(year);
+      if (list.length) { assortKey = list[0].key; file = list[0].file; }
+    }
+    if (!file) {
+      $grid.innerHTML = '<div class="empty">No catalog available for ' + esc(year) + ".</div>";
+      return;
+    }
+    curYear = String(year);
+    curAssort = assortKey;
+    activeSeries = null; rarityFilter = null;
+    renderCollbar();
+    $grid.innerHTML = '<div class="empty">Loading…</div>';
+
+    fetch("./data/" + file, { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (data) {
+        CARS = (data && Array.isArray(data.cars)) ? data.cars : [];
+        CARS.sort(function (a, b) {
+          var ai = parseInt(a.mainline_index, 10), bi = parseInt(b.mainline_index, 10);
+          if (isNaN(ai)) ai = 1e9; if (isNaN(bi)) bi = 1e9;
+          return ai - bi;
+        });
+        buildSeriesChips();
+        render();
+      })
+      .catch(function (err) {
+        $grid.innerHTML = '<div class="empty">Couldn\'t load this catalog.<br>' + esc(err.message) + "</div>";
       });
-      buildSeriesChips();
-      render();
+  }
+
+  $collbar.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest(".collbtn") : null;
+    if (!btn) return;
+    var type = btn.getAttribute("data-type");
+    var val = btn.getAttribute("data-val");
+    if (type === "year" && val !== curYear) {
+      // Keep the same assortment if the new year has it, else its first.
+      var keep = fileFor(val, curAssort) ? curAssort : (assortmentsFor(val)[0] || {}).key;
+      loadCollection(val, keep);
+    } else if (type === "assort" && val !== curAssort) {
+      loadCollection(curYear, val);
+    }
+    window.scrollTo(0, 0);
+  });
+
+  // --- Boot: load the manifest, then the default collection ---
+  fetch("./data/index.json", { cache: "no-store" })
+    .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(function (m) {
+      MANIFEST = m || {};
+      var def = MANIFEST.default || {};
+      var year = def.year || ((MANIFEST.years && MANIFEST.years[0] && MANIFEST.years[0].year) || null);
+      var assort = def.assortment || ((assortmentsFor(year)[0] || {}).key);
+      if (!year || !assort) throw new Error("manifest has no collections");
+      loadCollection(year, assort);
     })
     .catch(function (err) {
-      $grid.innerHTML = '<div class="empty">Couldn\'t load the catalog.<br>' + esc(err.message) + "</div>";
+      $grid.innerHTML = '<div class="empty">Couldn\'t load the catalog index.<br>' + esc(err.message) + "</div>";
     });
 })();
 </script>
