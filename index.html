@@ -319,6 +319,63 @@
   .dlbtn:active { opacity: .7; }
   .dlbtn.busy { opacity: .5; pointer-events: none; }
   .dlbtn.done { background: var(--accent); border-color: var(--accent); }
+  .hero img { cursor: zoom-in; }
+  .zoomhint {
+    position: absolute; left: 12px; bottom: 12px; pointer-events: none;
+    width: 40px; height: 40px; border-radius: 12px;
+    background: rgba(0,0,0,.62); border: 1px solid rgba(255,255,255,.18); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .zoomhint svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+
+  /* ---------- Fullscreen zoom viewer ---------- */
+  .zoomer {
+    position: fixed; inset: 0; z-index: 40; background: #000;
+    display: none; flex-direction: column;
+    -webkit-user-select: none; user-select: none;
+  }
+  .zoomer.open { display: flex; }
+  .zstage {
+    position: relative; flex: 1; overflow: hidden;
+    touch-action: none; /* we handle pinch / pan / swipe ourselves */
+    background: #fff;
+  }
+  .zstage img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: contain; transform-origin: 50% 50%;
+    will-change: transform; -webkit-user-drag: none; cursor: zoom-in;
+  }
+  .zstage img.zoomed { cursor: grab; }
+  .zstage img.anim { transition: transform .22s ease; }
+  .zbar {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 2;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+    pointer-events: none;
+  }
+  .zbar > * { pointer-events: auto; }
+  .zcount {
+    color: #fff; font-weight: 700; font-size: 14px;
+    background: rgba(0,0,0,.62); padding: 7px 12px; border-radius: 10px;
+  }
+  .zbtns { display: flex; gap: 8px; }
+  .zbtn {
+    width: 40px; height: 40px; border-radius: 12px;
+    background: rgba(0,0,0,.62); border: 1px solid rgba(255,255,255,.18);
+    color: #fff; cursor: pointer; font-size: 18px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .zbtn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2.2;
+    stroke-linecap: round; stroke-linejoin: round; }
+  .zbtn:active { opacity: .7; }
+  .zbtn.busy { opacity: .5; pointer-events: none; }
+  .zbtn.done { background: var(--accent); border-color: var(--accent); }
+  .znav {
+    position: absolute; top: 50%; z-index: 2; transform: translateY(-50%);
+  }
+  .znav.prev { left: 12px; }
+  .znav.next { right: 12px; }
+  .znav[hidden] { display: none; }
 
   .gallery {
     display: flex; gap: 8px; overflow-x: auto;
@@ -392,7 +449,10 @@
     </div>
     <div class="dscroll">
       <div class="hero">
-        <img id="heroImg" alt="" />
+        <img id="heroImg" alt="" title="Tap to zoom" />
+        <span class="zoomhint" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><line x1="16" y1="16" x2="20.5" y2="20.5"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+        </span>
         <button id="dlBtn" class="dlbtn" type="button" title="Download image" aria-label="Download image">
           <svg viewBox="0 0 24 24"><path d="M12 4v11"/><polyline points="7 10 12 15 17 10"/><path d="M5 20h14"/></svg>
         </button>
@@ -400,6 +460,28 @@
       <div id="gallery" class="gallery"></div>
       <div id="info" class="info"></div>
     </div>
+  </div>
+
+  <!-- Fullscreen zoom viewer -->
+  <div id="zoomer" class="zoomer" aria-hidden="true">
+    <div id="zStage" class="zstage">
+      <img id="zImg" alt="" draggable="false" />
+    </div>
+    <div class="zbar">
+      <span id="zCount" class="zcount"></span>
+      <div class="zbtns">
+        <button id="zDl" class="zbtn" type="button" title="Download image" aria-label="Download image">
+          <svg viewBox="0 0 24 24"><path d="M12 4v11"/><polyline points="7 10 12 15 17 10"/><path d="M5 20h14"/></svg>
+        </button>
+        <button id="zClose" class="zbtn" type="button" title="Close" aria-label="Close">✕</button>
+      </div>
+    </div>
+    <button id="zPrev" class="zbtn znav prev" type="button" aria-label="Previous image">
+      <svg viewBox="0 0 24 24"><polyline points="15 5 8 12 15 19"/></svg>
+    </button>
+    <button id="zNext" class="zbtn znav next" type="button" aria-label="Next image">
+      <svg viewBox="0 0 24 24"><polyline points="9 5 16 12 9 19"/></svg>
+    </button>
   </div>
 
   <!-- Series picker (bottom sheet) -->
@@ -537,6 +619,15 @@
   var $dscroll = document.querySelector(".dscroll");
   var $backBtn = document.getElementById("backBtn");
   var $dlBtn = document.getElementById("dlBtn");
+  var $zoomHint = document.querySelector(".zoomhint");
+  var $zoomer = document.getElementById("zoomer");
+  var $zStage = document.getElementById("zStage");
+  var $zImg = document.getElementById("zImg");
+  var $zCount = document.getElementById("zCount");
+  var $zDl = document.getElementById("zDl");
+  var $zClose = document.getElementById("zClose");
+  var $zPrev = document.getElementById("zPrev");
+  var $zNext = document.getElementById("zNext");
 
   function esc(s) {
     return String(s == null ? "" : s)
@@ -843,26 +934,50 @@
   });
 
   // "<title>-<sku>-<n>.<ext>", filesystem-safe.
+  // "<title>-<sku>-<n>.jpg", filesystem-safe. Downloads are always JPEG.
   function imageFileName(car, src, idx) {
-    var m = /\.([a-z0-9]{3,4})(?:[?#]|$)/i.exec(src);
-    var ext = m ? m[1].toLowerCase() : "jpg";
     var base = [car.title, car.sku].filter(Boolean).join("-")
       .replace(/[^\w\-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "") || "image";
-    return base + "-" + (idx + 1) + "." + ext;
+    return base + "-" + (idx + 1) + ".jpg";
   }
 
-  // Download an image. Inside Telegram (Bot API 8.0+) use the native
-  // downloadFile dialog. In a browser, fetch → blob → <a download>. The image
-  // host (findmyhw.com) sends no CORS headers, so a direct fetch is blocked;
-  // we then fetch through wsrv.nl (a free image proxy that adds
-  // Access-Control-Allow-Origin: *). Only if both fail do we open a new tab.
-  function proxied(url) {
-    return "https://wsrv.nl/?url=" + encodeURIComponent(url.replace(/^https?:\/\//, ""));
+  // Download an image as JPEG. The source images are WebP on findmyhw.com,
+  // which sends no CORS headers, so we go through wsrv.nl (a free image proxy
+  // that adds Access-Control-Allow-Origin: *) and ask it to convert to JPEG
+  // (output=jpg, white background for any transparency). Inside Telegram
+  // (Bot API 8.0+) the native downloadFile dialog gets that JPEG URL. In a
+  // browser we fetch it → blob → <a download>. If the proxy fails we try the
+  // original directly and convert it on a canvas; if that's blocked too we
+  // open the original in a new tab.
+  function jpgUrl(url) {
+    return "https://wsrv.nl/?url=" + encodeURIComponent(url.replace(/^https?:\/\//, "")) +
+           "&output=jpg&q=92&bg=white";
   }
   function fetchBlob(u) {
     return fetch(u, { mode: "cors" }).then(function (r) {
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.blob();
+    });
+  }
+  // Re-encode any browser-decodable image blob as JPEG on a white canvas.
+  function toJpeg(blob) {
+    if (blob.type === "image/jpeg") return Promise.resolve(blob);
+    return new Promise(function (resolve, reject) {
+      var u = URL.createObjectURL(blob);
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var c = document.createElement("canvas");
+          c.width = img.naturalWidth; c.height = img.naturalHeight;
+          var ctx = c.getContext("2d");
+          ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+          ctx.drawImage(img, 0, 0);
+          URL.revokeObjectURL(u);
+          c.toBlob(function (b) { b ? resolve(b) : reject(new Error("encode")); }, "image/jpeg", 0.92);
+        } catch (e) { URL.revokeObjectURL(u); reject(e); }
+      };
+      img.onerror = function () { URL.revokeObjectURL(u); reject(new Error("decode")); };
+      img.src = u;
     });
   }
   function downloadImage(url, name, btn) {
@@ -875,7 +990,7 @@
       }
     }
     if (inTelegram && tg.downloadFile && tg.isVersionAtLeast && tg.isVersionAtLeast("8.0")) {
-      try { tg.downloadFile({ url: url, file_name: name }); return; } catch (e) {}
+      try { tg.downloadFile({ url: jpgUrl(url), file_name: name }); return; } catch (e) {}
     }
     function openTab() {
       // Note: window.open with "noopener" always returns null, so don't use
@@ -886,9 +1001,9 @@
     }
     if (!window.fetch || !window.URL || !URL.createObjectURL) { openTab(); return; }
     if (btn) btn.classList.add("busy");
-    fetchBlob(url).catch(function () {
-      return fetchBlob(proxied(url));
-    }).then(function (blob) {
+    fetchBlob(jpgUrl(url)).catch(function () {
+      return fetchBlob(url);
+    }).then(toJpeg).then(function (blob) {
       var obj = URL.createObjectURL(blob);
       var a = document.createElement("a");
       a.href = obj; a.download = name;
@@ -902,13 +1017,239 @@
   }
 
   var currentCar = null; // the car shown in the detail view (for its filters)
+  var detailImgs = [];   // that car's images
+
+  // Show image `idx` in the detail hero and mark its gallery thumbnail.
+  function selectDetailImage(idx) {
+    if (!detailImgs[idx]) return;
+    $heroImg.src = detailImgs[idx];
+    var all = $gallery.querySelectorAll("img");
+    for (var i = 0; i < all.length; i++) all[i].classList.toggle("sel", i === idx);
+  }
+  function heroIndex() {
+    var i = detailImgs.indexOf($heroImg.getAttribute("src"));
+    return i < 0 ? 0 : i;
+  }
+
+  // ---------- Fullscreen zoom viewer ----------
+  // Pinch / wheel / double-tap to zoom, drag to pan when zoomed, swipe
+  // left/right to change image and swipe down to close when not zoomed.
+  // Implemented with Pointer Events so touch and mouse share one code path.
+  var Z = {
+    open: false, idx: 0, s: 1, tx: 0, ty: 0,
+    pts: {},            // active pointers: id -> {x, y}
+    pinch: null,        // {d, s, mx, my, tx, ty} at pinch start
+    drag: null,         // {x, y, tx, ty, t, moved} at one-finger drag start
+    lastTap: 0, lastTapX: 0, lastTapY: 0
+  };
+  var Z_MAX = 5, Z_DBL = 2.5;
+
+  function zRect() { return $zStage.getBoundingClientRect(); }
+
+  // Size of the image as drawn at scale 1 (object-fit: contain).
+  function zFit() {
+    var r = zRect();
+    var nw = $zImg.naturalWidth || r.width, nh = $zImg.naturalHeight || r.height;
+    var f = Math.min(r.width / nw, r.height / nh);
+    return { w: nw * f, h: nh * f, W: r.width, H: r.height };
+  }
+
+  // Keep the zoomed image covering the stage (no panning into empty space).
+  function zClamp() {
+    var f = zFit();
+    var mx = Math.max(0, (f.w * Z.s - f.W) / 2);
+    var my = Math.max(0, (f.h * Z.s - f.H) / 2);
+    Z.tx = Math.min(mx, Math.max(-mx, Z.tx));
+    Z.ty = Math.min(my, Math.max(-my, Z.ty));
+  }
+
+  function zApply(anim) {
+    $zImg.classList.toggle("anim", !!anim);
+    $zImg.classList.toggle("zoomed", Z.s > 1.01);
+    $zImg.style.transform = "translate(" + Z.tx + "px," + Z.ty + "px) scale(" + Z.s + ")";
+  }
+
+  // Zoom to scale `s` keeping the stage point (px, py) — relative to the
+  // stage centre — fixed under the finger / cursor.
+  function zZoomAt(s, px, py, anim) {
+    s = Math.min(Z_MAX, Math.max(1, s));
+    Z.tx = px - (px - Z.tx) * (s / Z.s);
+    Z.ty = py - (py - Z.ty) * (s / Z.s);
+    Z.s = s;
+    zClamp();
+    zApply(anim);
+  }
+
+  function zReset(anim) { Z.s = 1; Z.tx = 0; Z.ty = 0; zApply(anim); }
+
+  function zShow(idx) {
+    var n = detailImgs.length;
+    if (!n) return;
+    Z.idx = (idx + n) % n;
+    zReset(false);
+    $zImg.src = detailImgs[Z.idx];
+    $zCount.textContent = (Z.idx + 1) + " / " + n;
+    $zCount.style.display = n > 1 ? "" : "none";
+    $zPrev.hidden = $zNext.hidden = n < 2;
+    // Warm the cache for the neighbours so swiping feels instant.
+    if (n > 1) {
+      new Image().src = detailImgs[(Z.idx + 1) % n];
+      new Image().src = detailImgs[(Z.idx - 1 + n) % n];
+    }
+  }
+
+  function openZoom(idx) {
+    if (!detailImgs.length || Z.open) return;
+    Z.open = true;
+    Z.pts = {}; Z.pinch = null; Z.drag = null;
+    $zoomer.classList.add("open");
+    $zoomer.setAttribute("aria-hidden", "false");
+    zShow(idx);
+    Z.pushed = false;
+    try { history.pushState({ zoom: true }, ""); Z.pushed = true; } catch (e) {}
+    // While the viewer is open, Telegram's BackButton closes it (not the detail).
+    if (tg && tg.BackButton) {
+      tg.BackButton.offClick(closeDetail);
+      tg.BackButton.onClick(closeZoom);
+    }
+    // Stop Telegram's swipe-down-to-minimise from fighting our pan / swipe.
+    try { tg && tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch (e) {}
+  }
+
+  // fromPop: same contract as closeDetail().
+  function closeZoom(fromPop) {
+    if (!Z.open) return;
+    Z.open = false;
+    $zoomer.classList.remove("open");
+    $zoomer.setAttribute("aria-hidden", "true");
+    selectDetailImage(Z.idx); // land the detail view on the image last viewed
+    if (tg && tg.BackButton) {
+      tg.BackButton.offClick(closeZoom);
+      tg.BackButton.onClick(closeDetail);
+    }
+    try { tg && tg.enableVerticalSwipes && tg.enableVerticalSwipes(); } catch (e) {}
+    // Closed via ✕ / swipe / Telegram BackButton: pop our own history entry.
+    // That fires popstate, which must NOT also close the detail underneath,
+    // so tell the handler to swallow exactly that one event.
+    if (fromPop !== true && Z.pushed) {
+      Z.ignorePop = true;
+      try { history.back(); } catch (e) { Z.ignorePop = false; }
+    }
+    Z.pushed = false;
+  }
+
+  function zLocal(x, y) {
+    var r = zRect();
+    return { x: x - r.left - r.width / 2, y: y - r.top - r.height / 2 };
+  }
+
+  function zPointerDown(e) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    try { $zStage.setPointerCapture(e.pointerId); } catch (err) {}
+    Z.pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var ids = Object.keys(Z.pts);
+    if (ids.length === 2) {
+      var a = Z.pts[ids[0]], b = Z.pts[ids[1]];
+      var m = zLocal((a.x + b.x) / 2, (a.y + b.y) / 2);
+      Z.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, s: Z.s, mx: m.x, my: m.y, tx: Z.tx, ty: Z.ty };
+      Z.drag = null;
+    } else if (ids.length === 1) {
+      Z.drag = { x: e.clientX, y: e.clientY, tx: Z.tx, ty: Z.ty, t: Date.now(), moved: false };
+    }
+    zApply(false);
+  }
+
+  function zPointerMove(e) {
+    if (!Z.pts[e.pointerId]) return;
+    Z.pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var ids = Object.keys(Z.pts);
+    if (Z.pinch && ids.length >= 2) {
+      var a = Z.pts[ids[0]], b = Z.pts[ids[1]];
+      var m = zLocal((a.x + b.x) / 2, (a.y + b.y) / 2);
+      var s = Math.min(Z_MAX, Math.max(1, Z.pinch.s * Math.hypot(a.x - b.x, a.y - b.y) / Z.pinch.d));
+      // Keep the image point that was under the starting midpoint under the
+      // current midpoint (this also pans when both fingers move together).
+      Z.tx = m.x - (Z.pinch.mx - Z.pinch.tx) * (s / Z.pinch.s);
+      Z.ty = m.y - (Z.pinch.my - Z.pinch.ty) * (s / Z.pinch.s);
+      Z.s = s;
+      zClamp();
+      zApply(false);
+      return;
+    }
+    if (!Z.drag) return;
+    var dx = e.clientX - Z.drag.x, dy = e.clientY - Z.drag.y;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) Z.drag.moved = true;
+    if (Z.s > 1.01) {
+      Z.tx = Z.drag.tx + dx; Z.ty = Z.drag.ty + dy;
+      zClamp();
+    } else {
+      // Not zoomed: follow the finger as feedback for a swipe.
+      Z.tx = Math.abs(dx) > Math.abs(dy) ? dx : 0;
+      Z.ty = Math.abs(dy) > Math.abs(dx) && dy > 0 ? dy : 0;
+    }
+    zApply(false);
+  }
+
+  function zPointerUp(e) {
+    if (!Z.pts[e.pointerId]) return;
+    delete Z.pts[e.pointerId];
+    var left = Object.keys(Z.pts);
+    if (Z.pinch) {
+      if (left.length < 2) {
+        Z.pinch = null;
+        if (Z.s < 1.05) zReset(true);
+        // Continue as a one-finger pan with whichever finger stayed down.
+        if (left.length === 1) {
+          var p = Z.pts[left[0]];
+          Z.drag = { x: p.x, y: p.y, tx: Z.tx, ty: Z.ty, t: Date.now(), moved: true };
+        }
+      }
+      return;
+    }
+    var d = Z.drag;
+    Z.drag = null;
+    if (!d) return;
+    var dx = e.clientX - d.x, dy = e.clientY - d.y;
+
+    if (!d.moved) {
+      // Tap. Two taps close together = toggle zoom at that spot.
+      var now = Date.now();
+      if (now - Z.lastTap < 300 && Math.hypot(e.clientX - Z.lastTapX, e.clientY - Z.lastTapY) < 30) {
+        Z.lastTap = 0;
+        if (Z.s > 1.01) zReset(true);
+        else { var p2 = zLocal(e.clientX, e.clientY); zZoomAt(Z_DBL, p2.x, p2.y, true); }
+      } else {
+        Z.lastTap = now; Z.lastTapX = e.clientX; Z.lastTapY = e.clientY;
+      }
+      return;
+    }
+
+    if (Z.s <= 1.01) {
+      var n = detailImgs.length;
+      if (n > 1 && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+        zShow(Z.idx + (dx < 0 ? 1 : -1));
+      } else if (dy > 110 && dy > Math.abs(dx)) {
+        closeZoom();
+      } else {
+        zReset(true); // snap back
+      }
+    }
+  }
+
+  function zWheel(e) {
+    e.preventDefault();
+    var p = zLocal(e.clientX, e.clientY);
+    zZoomAt(Z.s * Math.exp(-e.deltaY * 0.0025), p.x, p.y, false);
+  }
 
   function showDetail(car) {
     currentCar = car;
     var imgs = (car.images && car.images.length) ? car.images : [];
     function setHero(src) { $heroImg.src = src || ""; }
     setHero(imgs[0]);
+    detailImgs = imgs;
     $dlBtn.style.display = imgs.length ? "" : "none";
+    $zoomHint.style.display = imgs.length ? "" : "none";
     $dlBtn.onclick = function () {
       var src = $heroImg.getAttribute("src");
       if (!src) return;
@@ -927,10 +1268,8 @@
     $gallery.onclick = function (e) {
       var t = e.target;
       if (t && t.tagName === "IMG") {
-        setHero(t.getAttribute("data-src"));
-        var sel = $gallery.querySelectorAll("img");
-        for (var i = 0; i < sel.length; i++) sel[i].classList.remove("sel");
-        t.classList.add("sel");
+        var all = $gallery.querySelectorAll("img");
+        for (var i = 0; i < all.length; i++) if (all[i] === t) selectDetailImage(i);
       }
     };
 
@@ -1038,12 +1377,41 @@
 
   // Back gesture / hardware back / browser back fires popstate. If the detail
   // is open, consume it to close the detail rather than leave the app.
+  // The zoom viewer sits on top of the detail, so it closes first.
   window.addEventListener("popstate", function () {
-    if ($detail.classList.contains("open")) closeDetail(true);
+    if (Z.ignorePop) { Z.ignorePop = false; return; }
+    if (Z.open) closeZoom(true);
+    else if ($detail.classList.contains("open")) closeDetail(true);
   });
 
   // --- Events ---
   $backBtn.addEventListener("click", closeDetail);
+
+  // Zoom viewer
+  $heroImg.addEventListener("click", function () { openZoom(heroIndex()); });
+  $zStage.addEventListener("pointerdown", zPointerDown);
+  $zStage.addEventListener("pointermove", zPointerMove);
+  $zStage.addEventListener("pointerup", zPointerUp);
+  $zStage.addEventListener("pointercancel", zPointerUp);
+  $zStage.addEventListener("wheel", zWheel, { passive: false });
+  $zImg.addEventListener("load", function () { zClamp(); zApply(false); });
+  window.addEventListener("resize", function () { if (Z.open) { zClamp(); zApply(false); } });
+  $zClose.addEventListener("click", function () { closeZoom(); });
+  $zPrev.addEventListener("click", function () { zShow(Z.idx - 1); });
+  $zNext.addEventListener("click", function () { zShow(Z.idx + 1); });
+  $zDl.addEventListener("click", function () {
+    var src = detailImgs[Z.idx];
+    if (src) downloadImage(src, imageFileName(currentCar || {}, src, Z.idx), $zDl);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!Z.open) return;
+    if (e.key === "Escape") closeZoom();
+    else if (e.key === "ArrowLeft") zShow(Z.idx - 1);
+    else if (e.key === "ArrowRight") zShow(Z.idx + 1);
+    else if (e.key === "+" || e.key === "=") zZoomAt(Z.s * 1.5, 0, 0, true);
+    else if (e.key === "-") zZoomAt(Z.s / 1.5, 0, 0, true);
+    else if (e.key === "0") zReset(true);
+  });
 
   // Tapping a linked spec value (Assortment / Series / OEM) closes the detail
   // and filters the grid to that value.
