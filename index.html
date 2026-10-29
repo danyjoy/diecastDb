@@ -54,6 +54,22 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* ---------- Go-to-top button (shown once the header scrolls away) ---------- */
+  .totop {
+    position: fixed; z-index: 15; /* above the grid, below detail (20) / sheets (30) */
+    right: 16px; bottom: calc(18px + env(safe-area-inset-bottom));
+    width: 46px; height: 46px; border-radius: 50%;
+    background: var(--accent); color: #fff; border: 0; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0,0,0,.45);
+    display: inline-flex; align-items: center; justify-content: center;
+    opacity: 0; transform: translateY(14px) scale(.9); pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+  }
+  .totop.show { opacity: 1; transform: none; pointer-events: auto; }
+  .totop:active { transform: scale(.92); }
+  .totop svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.6;
+    stroke-linecap: round; stroke-linejoin: round; }
+
   /* ---------- Header ---------- */
   header {
     position: sticky;
@@ -238,6 +254,28 @@
   .card.sth .thumb { background: #f7edcf; }
   .card.chase .thumb { background: #f7edcf; }
   .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+  /* ---------- Image loading / empty states ---------- */
+  /* The rolling-wheel Lottie (wheel-loader.json) shows while an image loads.
+     It's prepended inside the image box so badges / buttons still sit on top. */
+  .ldr {
+    position: absolute; inset: 0; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ldr-anim { width: 46%; max-width: 160px; aspect-ratio: 1 / 1; }
+  .hero .ldr-anim { width: 34%; }
+  .zstage .ldr-anim { width: 140px; }
+  /* Fallback if the Lottie player can't load: the same wheel, CSS-spun. */
+  .ldr.fallback svg { width: 100%; height: 100%; animation: ldrspin .9s linear infinite; }
+  @keyframes ldrspin { to { transform: rotate(360deg); } }
+  .thumb.loading img, .hero.loading img, .zstage.loading img { opacity: 0; }
+  .noimg {
+    position: absolute; inset: 0; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    color: #8a8f98; font-size: 12px; font-weight: 600;
+  }
+  .noimg svg { width: 42%; max-width: 150px; opacity: .3; }
+  .hero .noimg svg { width: 30%; }
 
   .badge {
     position: absolute;
@@ -440,6 +478,10 @@
 
   <div id="grid" class="grid"></div>
 
+  <button id="toTop" class="totop" type="button" title="Back to top" aria-label="Back to top" tabindex="-1">
+    <svg viewBox="0 0 24 24"><polyline points="6 14 12 8 18 14"/></svg>
+  </button>
+
   <div id="detail" class="detail">
     <div class="dbar">
       <button id="backBtn" class="backbtn" type="button">
@@ -629,6 +671,131 @@
   var $zPrev = document.getElementById("zPrev");
   var $zNext = document.getElementById("zNext");
 
+  // ---------- Image loaders ----------
+  // While an image loads we show the rolling-wheel Lottie (wheel-loader.json)
+  // inside its box. A static SVG of the same wheel is used for "No photo" and
+  // as a CSS-spun fallback until (or if) the Lottie player is available.
+  var WHEEL_SVG =
+    '<svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(100 100)">' +
+      '<circle r="61" fill="#1c1f26"/><circle r="42" fill="#c4c9d4"/><circle r="33" fill="#3a3f4b"/>' +
+      [0, 72, 144, 216, 288].map(function (a) {
+        return '<rect x="-4.5" y="-34" width="9" height="30" rx="4" fill="#c4c9d4" transform="rotate(' + a + ')"/>';
+      }).join("") +
+      '<circle r="8" fill="#2f8fff"/></g></svg>';
+  var NOIMG_HTML = '<div class="noimg">' + WHEEL_SVG + "<span>No photo</span></div>";
+
+  var LOTTIE_SRC = "https://cdn.jsdelivr.net/npm/lottie-web@5.13.0/build/player/lottie_light.min.js";
+  var LOTTIE_SRI = "sha384-Gr3FGWSrOz4fzm9bvrWwhuQH87JMUCLlOTaHhpddbnlHHWCZPxMeQ3KUPsomzIii";
+  var WHEEL_JSON = null; // raw JSON text; parsed per instance (lottie mutates it)
+
+  function lottieReady() { return !!(window.lottie && WHEEL_JSON); }
+
+  function mountLoader(box) {
+    var ex = box.querySelector(":scope > .ldr");
+    if (ex && !(ex.classList.contains("fallback") && lottieReady())) return;
+    if (ex) unmountLoader(box); // upgrade a CSS fallback to the Lottie
+    var wrap = document.createElement("div");
+    wrap.className = "ldr";
+    var inner = document.createElement("div");
+    inner.className = "ldr-anim";
+    wrap.appendChild(inner);
+    box.insertBefore(wrap, box.firstChild);
+    if (lottieReady()) {
+      try {
+        box._ldr = window.lottie.loadAnimation({
+          container: inner, renderer: "svg", loop: true, autoplay: true,
+          animationData: JSON.parse(WHEEL_JSON)
+        });
+        return;
+      } catch (e) { inner.innerHTML = ""; }
+    }
+    wrap.classList.add("fallback");
+    inner.innerHTML = WHEEL_SVG;
+  }
+
+  function unmountLoader(box) {
+    if (box._ldr) { try { box._ldr.destroy(); } catch (e) {} box._ldr = null; }
+    var ex = box.querySelector(":scope > .ldr");
+    if (ex) ex.remove();
+  }
+
+  // Image finished (ok=true) or failed: drop the loader, show "No photo" on failure.
+  function imageDone(box, img, ok) {
+    box.classList.remove("loading");
+    unmountLoader(box);
+    if (!ok) {
+      img.style.visibility = "hidden";
+      if (!box.querySelector(":scope > .noimg")) box.insertAdjacentHTML("afterbegin", NOIMG_HTML);
+    }
+  }
+
+  // Point a reused <img> (hero / zoom viewer) at `src`, with loader + empty state.
+  function loadInto(box, img, src) {
+    var ni = box.querySelector(":scope > .noimg");
+    if (ni) ni.remove();
+    img.style.visibility = "";
+    var tok = (box._tok || 0) + 1;
+    box._tok = tok;
+    if (!src) {
+      img.removeAttribute("src");
+      imageDone(box, img, false);
+      return;
+    }
+    img.onload = function () { if (box._tok === tok) imageDone(box, img, true); };
+    img.onerror = function () { if (box._tok === tok) imageDone(box, img, false); };
+    box.classList.add("loading");
+    img.src = src;
+    if (img.complete && img.naturalWidth) imageDone(box, img, true); // already cached
+    else mountLoader(box);
+  }
+
+  // Grid thumbnails: there can be hundreds, so a Lottie only runs for tiles
+  // that are on screen and still loading. load/error don't bubble, so we
+  // listen in the capture phase on the grid.
+  var thumbIO = ("IntersectionObserver" in window) ? new IntersectionObserver(function (entries) {
+    for (var i = 0; i < entries.length; i++) {
+      var box = entries[i].target;
+      if (!box.classList.contains("loading")) { thumbIO.unobserve(box); continue; }
+      if (entries[i].isIntersecting) mountLoader(box); else unmountLoader(box);
+    }
+  }, { rootMargin: "100px" }) : null;
+
+  function observeThumbs() {
+    var boxes = $grid.querySelectorAll(".thumb.loading");
+    for (var i = 0; i < boxes.length; i++) {
+      var img = boxes[i].querySelector("img");
+      if (img && img.complete) { imageDone(boxes[i], img, img.naturalWidth > 0); continue; }
+      if (thumbIO) thumbIO.observe(boxes[i]);
+    }
+  }
+
+  function thumbEvent(e) {
+    var img = e.target;
+    if (!img || img.tagName !== "IMG") return;
+    var box = img.parentNode;
+    if (!box || !box.classList || !box.classList.contains("thumb")) return;
+    if (thumbIO) thumbIO.unobserve(box);
+    imageDone(box, img, e.type === "load");
+  }
+
+  // Load the Lottie player (pinned + SRI) and the animation, then upgrade any
+  // loaders that started as the CSS fallback.
+  function upgradeLoaders() {
+    if (!lottieReady()) return;
+    var f = document.querySelectorAll(".ldr.fallback");
+    for (var i = 0; i < f.length; i++) mountLoader(f[i].parentNode);
+  }
+  (function loadLottie() {
+    var s = document.createElement("script");
+    s.src = LOTTIE_SRC; s.integrity = LOTTIE_SRI; s.crossOrigin = "anonymous"; s.async = true;
+    s.onload = upgradeLoaders;
+    document.head.appendChild(s);
+    fetch("./wheel-loader.json").then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.text();
+    }).then(function (t) { WHEEL_JSON = t; upgradeLoaders(); }).catch(function () {});
+  })();
+
   function esc(s) {
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -736,8 +903,8 @@
       var cls = rc ? (" " + rc) : (soft ? " softchase" : "");
       html +=
         '<div class="card' + cls + '" data-id="' + esc(c.id) + '">' +
-          '<div class="thumb">' + badge + softBadge +
-            (thumb ? '<img loading="lazy" src="' + esc(thumb) + '" alt="">' : "") +
+          '<div class="thumb' + (thumb ? " loading" : "") + '">' + badge + softBadge +
+            (thumb ? '<img loading="lazy" src="' + esc(thumb) + '" alt="">' : NOIMG_HTML) +
           '</div>' +
           '<div class="cardbody">' +
             '<div class="title">' + esc(c.title) + '</div>' +
@@ -746,6 +913,7 @@
         '</div>';
     }
     $grid.innerHTML = html;
+    observeThumbs();
   }
 
   // GROUPS: first-level values with counts. SUBGROUPS: second-level values for
@@ -1022,7 +1190,7 @@
   // Show image `idx` in the detail hero and mark its gallery thumbnail.
   function selectDetailImage(idx) {
     if (!detailImgs[idx]) return;
-    $heroImg.src = detailImgs[idx];
+    loadInto($heroImg.parentNode, $heroImg, detailImgs[idx]);
     var all = $gallery.querySelectorAll("img");
     for (var i = 0; i < all.length; i++) all[i].classList.toggle("sel", i === idx);
   }
@@ -1087,7 +1255,7 @@
     if (!n) return;
     Z.idx = (idx + n) % n;
     zReset(false);
-    $zImg.src = detailImgs[Z.idx];
+    loadInto($zStage, $zImg, detailImgs[Z.idx]);
     $zCount.textContent = (Z.idx + 1) + " / " + n;
     $zCount.style.display = n > 1 ? "" : "none";
     $zPrev.hidden = $zNext.hidden = n < 2;
@@ -1122,6 +1290,7 @@
     Z.open = false;
     $zoomer.classList.remove("open");
     $zoomer.setAttribute("aria-hidden", "true");
+    unmountLoader($zStage);
     selectDetailImage(Z.idx); // land the detail view on the image last viewed
     if (tg && tg.BackButton) {
       tg.BackButton.offClick(closeZoom);
@@ -1245,7 +1414,7 @@
   function showDetail(car) {
     currentCar = car;
     var imgs = (car.images && car.images.length) ? car.images : [];
-    function setHero(src) { $heroImg.src = src || ""; }
+    function setHero(src) { loadInto($heroImg.parentNode, $heroImg, src); }
     setHero(imgs[0]);
     detailImgs = imgs;
     $dlBtn.style.display = imgs.length ? "" : "none";
@@ -1364,6 +1533,7 @@
   function closeDetail(fromPop) {
     if (!$detail.classList.contains("open")) return;
     $detail.classList.remove("open");
+    unmountLoader($heroImg.parentNode);
     if (tg && tg.BackButton) {
       tg.BackButton.hide();
       tg.BackButton.offClick(closeDetail);
@@ -1447,6 +1617,30 @@
     render();
     window.scrollTo(0, 0);
   });
+
+  // Go-to-top: visible whenever the header is fully scrolled out of view.
+  (function () {
+    var btn = document.getElementById("toTop");
+    var header = document.querySelector("header");
+    function set(show) {
+      btn.classList.toggle("show", show);
+      btn.tabIndex = show ? 0 : -1;
+    }
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(function (en) { set(!en[0].isIntersecting); }).observe(header);
+    } else {
+      window.addEventListener("scroll", function () {
+        set(header.getBoundingClientRect().bottom < 0);
+      }, { passive: true });
+    }
+    btn.addEventListener("click", function () {
+      if (tg && tg.HapticFeedback) { try { tg.HapticFeedback.impactOccurred("light"); } catch (e) {} }
+      try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
+    });
+  })();
+
+  $grid.addEventListener("load", thumbEvent, true);
+  $grid.addEventListener("error", thumbEvent, true);
 
   $grid.addEventListener("click", function (e) {
     var card = e.target.closest ? e.target.closest(".card") : null;
