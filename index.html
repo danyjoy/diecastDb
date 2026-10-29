@@ -852,9 +852,19 @@
   }
 
   // Download an image. Inside Telegram (Bot API 8.0+) use the native
-  // downloadFile dialog. In a browser, try fetch → blob → <a download>; the
-  // image host doesn't send CORS headers today, so that usually fails and we
-  // fall back to opening the image in a new tab (long-press / save from there).
+  // downloadFile dialog. In a browser, fetch → blob → <a download>. The image
+  // host (findmyhw.com) sends no CORS headers, so a direct fetch is blocked;
+  // we then fetch through wsrv.nl (a free image proxy that adds
+  // Access-Control-Allow-Origin: *). Only if both fail do we open a new tab.
+  function proxied(url) {
+    return "https://wsrv.nl/?url=" + encodeURIComponent(url.replace(/^https?:\/\//, ""));
+  }
+  function fetchBlob(u) {
+    return fetch(u, { mode: "cors" }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.blob();
+    });
+  }
   function downloadImage(url, name, btn) {
     function flash(cls) {
       if (!btn) return;
@@ -868,14 +878,16 @@
       try { tg.downloadFile({ url: url, file_name: name }); return; } catch (e) {}
     }
     function openTab() {
-      var w = window.open(url, "_blank", "noopener");
-      if (!w) location.href = url;
+      // Note: window.open with "noopener" always returns null, so don't use
+      // its return value to decide on a fallback (that navigated this tab too).
+      var a = document.createElement("a");
+      a.href = url; a.target = "_blank"; a.rel = "noopener";
+      document.body.appendChild(a); a.click(); a.remove();
     }
     if (!window.fetch || !window.URL || !URL.createObjectURL) { openTab(); return; }
     if (btn) btn.classList.add("busy");
-    fetch(url, { mode: "cors" }).then(function (r) {
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.blob();
+    fetchBlob(url).catch(function () {
+      return fetchBlob(proxied(url));
     }).then(function (blob) {
       var obj = URL.createObjectURL(blob);
       var a = document.createElement("a");
