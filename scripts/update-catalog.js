@@ -23,6 +23,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { buildScanIndex } = require("./build-scan-index");
 
 const ROOT = path.join(__dirname, "..");
 const DATA_DIR = path.join(ROOT, "data");
@@ -217,6 +218,10 @@ async function main() {
     console.error("\nNo data written for any collection — treating as failure.");
     process.exit(1);
   }
+
+  // Refresh the cross-year index used by the card scanner.
+  const n = buildScanIndex();
+  console.log(`\nwrote ${n} cars -> data/scan-index.json`);
   console.log("\nDone.");
 }
 

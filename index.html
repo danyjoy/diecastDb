@@ -459,6 +459,128 @@
   .spec .v.link:active { opacity: .6; }
   .info .sub .sublink { cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
   .info .sub .sublink:active { opacity: .6; }
+
+  /* ---------- Card scanner (camera → OCR → catalog match) ---------- */
+  .search.has-scan { padding-right: 50px; }
+  .scanbtn {
+    position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+    width: 36px; height: 34px; border-radius: 9px;
+    background: var(--card2); border: 1px solid var(--border); color: var(--text);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .scanbtn:active { opacity: .7; }
+  .searchwrap .scanbtn svg, .scanner svg {
+    position: static; transform: none; width: 19px; height: 19px;
+    fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  .scanner {
+    position: fixed; inset: 0; z-index: 35; /* above sheets (30), below zoomer (40) */
+    background: #000; display: none; flex-direction: column;
+  }
+  .scanner.open { display: flex; }
+  .scanbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+    border-bottom: 1px solid var(--border); background: var(--bg);
+  }
+  .scanbar .ttl { font-weight: 700; font-size: 16px; }
+  .scanstage { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #000; }
+  .scanstage video, .scanstage .snap {
+    position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  }
+  .scanstage video { object-fit: cover; }
+  .scanstage .snap { object-fit: contain; display: none; }
+  /* Card frame (blister card is roughly 3:4 portrait). The bottom zone marks
+     where the name is printed; that strip is read first, enlarged. Keep the
+     zone's top in sync with NAME_ZONE_TOP in the script. */
+  .scanframe {
+    position: absolute; left: 50%; top: 47%; transform: translate(-50%, -50%);
+    width: 82%; height: 78%; border-radius: 14px; pointer-events: none;
+    border: 2px solid rgba(255,255,255,.9);
+    box-shadow: 0 0 0 9999px rgba(0,0,0,.5);
+  }
+  .scanzone {
+    position: absolute; left: 0; right: 0; top: 66%; bottom: 0;
+    border-top: 2px dashed var(--accent); border-radius: 0 0 12px 12px;
+    background: rgba(47,143,255,.14);
+  }
+  .scanzone::before {
+    content: "Car name"; position: absolute; left: 10px; top: 8px;
+    color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .3px;
+    background: var(--accent); padding: 3px 8px; border-radius: 6px;
+  }
+  .scanstatus {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    max-width: calc(100% - 24px); text-align: center;
+    background: rgba(0,0,0,.7); color: #fff; font-size: 13px; font-weight: 600;
+    padding: 7px 12px; border-radius: 10px; pointer-events: none;
+  }
+  .scanstatus:empty { display: none; }
+  .scanctl {
+    display: flex; align-items: center; justify-content: space-around; gap: 12px;
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+    background: var(--bg); border-top: 1px solid var(--border);
+  }
+  .scanctl .side {
+    min-width: 92px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+    font-size: 14px; font-weight: 600; padding: 10px 12px; border-radius: 12px; cursor: pointer;
+  }
+  .scanctl .side:active { opacity: .7; }
+  .scanctl .spacer { min-width: 92px; }
+  .shutter {
+    width: 66px; height: 66px; border-radius: 50%; cursor: pointer;
+    background: #fff; border: 4px solid var(--accent); box-shadow: 0 0 0 3px #fff inset;
+  }
+  .shutter:active { transform: scale(.94); }
+  .shutter:disabled { opacity: .4; }
+  .scanres { display: none; flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 12px 16px 16px; background: var(--bg); }
+  .scanres label { display: block; color: var(--hint); font-size: 12px; margin: 0 0 6px; }
+  .scantext {
+    width: 100%; min-height: 64px; resize: vertical; font: inherit; font-size: 16px;
+    color: var(--text); background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 12px; outline: none;
+  }
+  .scanlist { margin-top: 12px; }
+  .scancolor { display: flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--hint); font-size: 12px; }
+  .scancolor:empty { display: none; }
+  .scancolor .sw { width: 18px; height: 18px; border-radius: 5px; border: 1px solid rgba(255,255,255,.35); }
+  .scancolor .swn { color: var(--text); font-weight: 700; margin-right: 6px; }
+  .scancolor .swn.minor { color: var(--hint); font-weight: 600; }
+  .tag.colormatch { color: #7fd1a0; border-color: #2d5a40; }
+  .scanlist .empty { padding: 24px 10px; }
+  .scanrow {
+    display: flex; align-items: center; gap: 12px; padding: 9px 8px;
+    border-radius: 12px; cursor: pointer;
+  }
+  .scanrow:active, .scanrow.best { background: var(--card); }
+  .scanrow .sthumb {
+    position: relative; flex: 0 0 auto; width: 58px; height: 58px; border-radius: 10px;
+    background: #fff; overflow: hidden;
+  }
+  .scanrow .sthumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .scanrow .bd { flex: 1; min-width: 0; }
+  .scanrow .nm { font-weight: 700; font-size: 14px; text-transform: uppercase; line-height: 1.25; }
+  .scanrow .mt { color: var(--hint); font-size: 12px; margin-top: 3px; }
+  .scanrow .tags { margin-top: 5px; }
+  .scanrow .pct {
+    flex: 0 0 auto; font-size: 12px; color: var(--hint);
+    background: var(--card2); border: 1px solid var(--border); padding: 2px 8px; border-radius: 999px;
+  }
+  .scanrow.best .pct { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+  /* Modes: live camera / reading / reviewing results / no camera available. */
+  .scanner.review .scanstage { flex: 0 0 26vh; }
+  .scanner.review .scanres { display: block; }
+  .scanner.review video, .scanner.busy video { display: none; }
+  .scanner.review .snap, .scanner.busy .snap { display: block; }
+  .scanner.review .scanframe, .scanner.busy .scanframe, .scanner.nocam .scanframe { display: none; }
+  .scanner .only-live, .scanner .only-review { display: none; }
+  .scanner.live .only-live, .scanner.nocam .only-live, .scanner.review .only-review { display: inline-flex; }
+  .scanner.nocam .shutter { visibility: hidden; }
+  .scanner.busy .scanctl { pointer-events: none; opacity: .5; }
 </style>
 </head>
 <body>
@@ -469,7 +591,10 @@
     </div>
     <div class="searchwrap">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
-      <input id="search" class="search" type="search" placeholder="Search series, vehicles, SKU…" autocomplete="off" />
+      <input id="search" class="search has-scan" type="search" placeholder="Search series, vehicles, SKU…" autocomplete="off" />
+      <button id="scanBtn" class="scanbtn" type="button" title="Scan a card" aria-label="Scan a card with the camera">
+        <svg viewBox="0 0 24 24"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.8l1.4-2h4.6l1.4 2h1.8A2.5 2.5 0 0 1 20 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"/><circle cx="12" cy="12.8" r="3.6"/></svg>
+      </button>
     </div>
     <div id="collbar" class="collbar"></div>
     <div id="filters" class="filters"></div>
@@ -552,6 +677,39 @@
       </div>
       <div id="yearList" class="series-list"></div>
     </div>
+  </div>
+
+  <!-- Card scanner: camera → OCR → match against data/scan-index.json -->
+  <div id="scanner" class="scanner" aria-hidden="true">
+    <div class="scanbar">
+      <span class="ttl">Scan a card</span>
+      <button id="scanClose" class="sheet-close" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="scanstage">
+      <video id="scanVideo" playsinline muted autoplay></video>
+      <img id="scanSnap" class="snap" alt="" />
+      <div class="scanframe"><div class="scanzone"></div></div>
+      <div id="scanStatus" class="scanstatus"></div>
+    </div>
+    <div id="scanRes" class="scanres">
+      <label for="scanText">Text read from the card (edit to refine the match)</label>
+      <textarea id="scanText" class="scantext" rows="3" spellcheck="false" autocapitalize="characters"></textarea>
+      <div id="scanColor" class="scancolor"></div>
+      <div id="scanList" class="scanlist"></div>
+    </div>
+    <div class="scanctl">
+      <button id="scanUpload" class="side" type="button">
+        <svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M20.5 16l-5-5-8.5 8.5"/></svg>
+        Photo
+      </button>
+      <button id="scanShutter" class="shutter only-live" type="button" aria-label="Capture"></button>
+      <button id="scanRetake" class="side only-review" type="button">
+        <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><polyline points="4 4 4 8.5 8.5 8.5"/></svg>
+        Retake
+      </button>
+      <span class="spacer"></span>
+    </div>
+    <input id="scanFile" type="file" accept="image/*" hidden />
   </div>
 
 <script>
@@ -1411,7 +1569,9 @@
     zZoomAt(Z.s * Math.exp(-e.deltaY * 0.0025), p.x, p.y, false);
   }
 
-  function showDetail(car) {
+  // opts.replaceHistory: reuse the current history entry instead of pushing a
+  // new one (used when the scanner hands off to the detail view).
+  function showDetail(car, opts) {
     currentCar = car;
     var imgs = (car.images && car.images.length) ? car.images : [];
     function setHero(src) { loadInto($heroImg.parentNode, $heroImg, src); }
@@ -1518,7 +1678,10 @@
 
     // Push a history entry so the phone's back gesture / button pops this
     // detail instead of exiting the whole app. popstate (below) closes it.
-    try { history.pushState({ detail: true }, ""); } catch (e) {}
+    try {
+      if (opts && opts.replaceHistory) history.replaceState({ detail: true }, "");
+      else history.pushState({ detail: true }, "");
+    } catch (e) {}
 
     // Telegram's native BackButton only renders inside the Telegram client; the
     // in-page Back bar covers the browser/preview case, so both paths work.
@@ -1551,6 +1714,7 @@
   window.addEventListener("popstate", function () {
     if (Z.ignorePop) { Z.ignorePop = false; return; }
     if (Z.open) closeZoom(true);
+    else if (SC.open) closeScanner(true);
     else if ($detail.classList.contains("open")) closeDetail(true);
   });
 
@@ -1754,13 +1918,14 @@
   }
 
   // Fetch and show one collection. Resets series/rarity filters since the
-  // series list differs per collection.
+  // series list differs per collection. Returns a promise that resolves once
+  // CARS holds the new collection (or the load failed).
   function loadCollection(assortKey, year) {
     var years = yearsFor(assortKey);
     if (years.indexOf(String(year)) === -1) year = years[0]; // fall back to newest
     if (!assortKey || !year) {
       $grid.innerHTML = '<div class="empty">No catalog available.</div>';
-      return;
+      return Promise.resolve();
     }
     curAssort = assortKey;
     curYear = String(year);
@@ -1778,7 +1943,7 @@
     renderTitle();
     $grid.innerHTML = '<div class="empty">Loading…</div>';
 
-    fetch(fileFor(assortKey, year), { cache: "no-store" })
+    return fetch(fileFor(assortKey, year), { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .then(function (data) {
         CARS = (data && Array.isArray(data.cars)) ? data.cars : [];
@@ -1832,6 +1997,866 @@
     var y = row.getAttribute("data-year");
     closeYearSheet();
     if (y && y !== curYear) { loadCollection(curAssort, y); window.scrollTo(0, 0); }
+  });
+
+  // --- Card scanner ---
+  // Photograph a blister card, read its text on the device with PaddleOCR
+  // models (lazy-loaded, see getEngine), then fuzzy-match that text against every car
+  // in data/scan-index.json (all years and assortments, built by
+  // scripts/build-scan-index.js). Tapping a match loads that car's collection
+  // and opens its detail view.
+  // Text reading: PaddleOCR models (./models, ~24 MB) on ONNX Runtime Web
+  // (pinned + SRI; its WASM binary loads from the same pinned CDN path).
+  // The pipeline itself is ./ocr.js. Detection: PP-OCRv3 English (best at
+  // finding small card text in our tests). Recognition: PP-OCRv6 small, limited
+  // to Latin characters so it never emits CJK look-alikes.
+  var ORT_BASE = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/";
+  var ORT_SRC = ORT_BASE + "ort.wasm.min.js";
+  var ORT_SRI = "sha384-tNxIwEqSlcdvKtUte98AsccPbDKM958LBXB/+3BLS42TTihXHKTWgdqPqXI/lot8";
+  var OCR_MODELS = {
+    detUrl: "./models/en_PP-OCRv3_det_infer.onnx",
+    recUrl: "./models/PP-OCRv6_small_rec.onnx",
+    dictUrl: "./models/ppocrv6_dict.txt",
+    charset: /^[ -~\u00C0-\u017F™®]$/
+  };
+  var OCR_MIN_SCORE = 0.65; // drop lines the model is unsure of (reflections, art)
+  function scanImg(id) {
+    var e = encodeURIComponent(id);
+    return "https://findmyhw.com/media/images/" + e + "/" + e + "_1.webp";
+  }
+
+  var $scanBtn = document.getElementById("scanBtn");
+  var $scanner = document.getElementById("scanner");
+  var $scanClose = document.getElementById("scanClose");
+  var $scanStage = document.querySelector(".scanstage");
+  var $scanFrame = document.querySelector(".scanframe");
+  var $scanVideo = document.getElementById("scanVideo");
+  var $scanSnap = document.getElementById("scanSnap");
+  var $scanStatus = document.getElementById("scanStatus");
+  var $scanText = document.getElementById("scanText");
+  var $scanList = document.getElementById("scanList");
+  var $scanColor = document.getElementById("scanColor");
+  var $scanShutter = document.getElementById("scanShutter");
+  var $scanUpload = document.getElementById("scanUpload");
+  var $scanRetake = document.getElementById("scanRetake");
+  var $scanFile = document.getElementById("scanFile");
+
+  // run: bumped on every new action so late async results from an older
+  // capture / close are ignored.
+  var SC = { open: false, run: 0, stream: null, engine: null, engineP: null,
+             index: null, indexP: null, matches: [] };
+  function setMode(m) { $scanner.className = "scanner open " + m; }
+  function setStatus(t) { $scanStatus.textContent = t || ""; }
+
+  function loadScript(src, sri) {
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = src; s.async = true;
+      if (sri) { s.integrity = sri; s.crossOrigin = "anonymous"; }
+      s.onload = resolve;
+      s.onerror = function () { s.remove(); reject(new Error("couldn't load " + src.split("/").pop())); };
+      document.head.appendChild(s);
+    });
+  }
+
+  // Load the runtime, the pipeline and both models once; kept for the session
+  // (re-opening the scanner is then instant).
+  function getEngine() {
+    if (SC.engine) return Promise.resolve(SC.engine);
+    if (SC.engineP) return SC.engineP;
+    var p = SC.engineP = (window.ort ? Promise.resolve() : loadScript(ORT_SRC, ORT_SRI))
+      .then(function () { return window.PaddleOCRLite ? null : loadScript("./ocr.js"); })
+      .then(function () {
+        if (!window.ort || !window.PaddleOCRLite) throw new Error("text reader missing");
+        window.ort.env.wasm.wasmPaths = ORT_BASE;
+        // Multi-threading needs cross-origin isolation, which GitHub Pages lacks.
+        window.ort.env.wasm.numThreads = 1;
+        return window.PaddleOCRLite.load({
+          ort: window.ort, detUrl: OCR_MODELS.detUrl, recUrl: OCR_MODELS.recUrl,
+          dictUrl: OCR_MODELS.dictUrl, charset: OCR_MODELS.charset
+        });
+      })
+      .then(function (e) { SC.engine = e; return e; });
+    p.catch(function () { if (SC.engineP === p) SC.engineP = null; });
+    return p;
+  }
+
+  // ---- Matching ----
+  // Words printed on most cards. They still count when they're part of a
+  // casting name, but with low weight so they can't produce a match alone.
+  var BOILER = {};
+  ("HOT WHEELS MATTEL WARNING CHOKING HAZARD SMALL PARTS NOT FOR CHILDREN UNDER " +
+   "YEARS AGE AGES THE AND OF A HW COLLECT THEM ALL MADE IN MALAYSIA THAILAND CHINA " +
+   "INDONESIA TREASURE HUNT SERIES NEW MODEL SCALE DIE CAST 1 64 3")
+    .split(" ").forEach(function (w) { BOILER[w] = true; });
+
+  // Brand/packaging words to drop from what the reader returns. Partial reads
+  // count too ("TTEL" from a half-visible MATTEL logo).
+  var NOISE_WORDS = ["MATTEL", "HOTWHEELS", "HOT", "WHEELS", "WARNING", "CHOKING", "HAZARD",
+                     "SMALL", "PARTS", "CHILDREN", "UNDER", "YEARS", "AGES", "COLLECTOR"];
+  function isNoiseWord(t) {
+    if (t.length <= 2) return true; // "3", "3+", stray letters
+    for (var i = 0; i < NOISE_WORDS.length; i++) {
+      var n = NOISE_WORDS[i];
+      if (t === n || (t.length >= 3 && n.indexOf(t) !== -1)) return true;
+      if (t.length >= 5 && Math.abs(t.length - n.length) <= 1 && lev(t, n) <= 1) return true;
+    }
+    return false;
+  }
+  // Words that only appear in the safety warning; any of them (even misread)
+  // marks the whole line as the warning.
+  var WARNING_WORDS = ["WARNING", "CHOKING", "HAZARD", "CHILDREN", "ADVERTENCIA", "ATTENTION"];
+  // A line made only of noise words, or the warning line, is dropped; real
+  // names are kept whole.
+  function isNoiseLine(s) {
+    var toks = norm(s).split(" ").filter(Boolean), i, j;
+    for (i = 0; i < toks.length; i++) {
+      if (toks[i].length < 5) continue;
+      for (j = 0; j < WARNING_WORDS.length; j++) {
+        var wd = WARNING_WORDS[j];
+        if (Math.abs(toks[i].length - wd.length) <= 2 && lev(toks[i], wd) <= 2) return true;
+      }
+    }
+    for (i = 0; i < toks.length; i++) if (!isNoiseWord(toks[i])) return false;
+    return true;
+  }
+
+  function norm(s) {
+    var v = String(s || "");
+    if (v.normalize) v = v.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return v.toUpperCase()
+      .replace(/['’‘`´]/g, "")
+      .replace(/&/g, " AND ")
+      .replace(/[^A-Z0-9]+/g, " ")
+      .trim();
+  }
+
+  // A boilerplate word, or a near-spelling of one (so a casting like
+  // "Hot Wheengs" can't match on the logo printed on every card).
+  function isBoiler(t) {
+    if (BOILER[t]) return true;
+    if (t.length < 5) return false;
+    for (var b in BOILER) {
+      if (b.length >= 5 && Math.abs(b.length - t.length) <= 2 && lev(t, b) <= 2) return true;
+    }
+    return false;
+  }
+
+  function titleTokens(key) {
+    return key.split(" ").filter(Boolean).map(function (t) {
+      var w = t.length === 1 ? 0.5 : Math.min(t.length, 8);
+      var boiler = isBoiler(t);
+      if (boiler) w *= 0.25;
+      return { t: t, w: w, boiler: boiler };
+    });
+  }
+
+  function prepIndex(data) {
+    var f = (data && data.fields) || [], col = {};
+    for (var i = 0; i < f.length; i++) col[f[i]] = i;
+    var rows = (data && data.cars) || [], byKey = {}, titles = [];
+    for (var r = 0; r < rows.length; r++) {
+      var row = rows[r];
+      var car = {
+        id: row[col.id], title: row[col.title], year: String(row[col.year]),
+        assort: row[col.assortment], sku: String(row[col.sku] || "").toUpperCase(),
+        num: String(row[col.number] || ""), series: row[col.series] || "",
+        rarity: row[col.rarity] || "", img: !!row[col.img],
+        color: col.color != null ? (row[col.color] || "") : ""
+      };
+      var key = norm(car.title);
+      if (!key) continue;
+      var t = byKey[key];
+      if (!t) {
+        var toks = titleTokens(key), pairs = [], content = 0;
+        for (var q = 0; q < toks.length; q++) {
+          if (toks[q].w >= 1 && !toks[q].boiler) content += toks[q].w;
+          // 2-3 adjacent words glued together, for OCR that drops spaces
+          // ("FORDF150" → FORD F 150).
+          for (var span = 2; span <= 3 && q + span <= toks.length; span++) {
+            var glued = "";
+            for (var g2 = q; g2 < q + span; g2++) glued += toks[g2].t;
+            if (glued.length >= 5) pairs.push({ a: q, b: q + span - 1, s: canon(glued) });
+          }
+        }
+        t = byKey[key] = { toks: toks, pairs: pairs, content: content, cars: [] };
+        titles.push(t);
+      }
+      t.cars.push(car);
+    }
+    SC.index = { titles: titles };
+    return SC.index;
+  }
+
+  function getIndex() {
+    if (SC.index) return Promise.resolve(SC.index);
+    if (SC.indexP) return SC.indexP;
+    SC.indexP = fetch("./data/scan-index.json")
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(prepIndex);
+    var p = SC.indexP;
+    p.catch(function () { if (SC.indexP === p) SC.indexP = null; });
+    return p;
+  }
+
+  function lev(a, b) {
+    var m = a.length, n = b.length, prev = [], cur = [], i, j;
+    for (j = 0; j <= n; j++) prev[j] = j;
+    for (i = 1; i <= m; i++) {
+      cur[0] = i;
+      for (j = 1; j <= n; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      }
+      var tmp = prev; prev = cur; cur = tmp;
+    }
+    return prev[n];
+  }
+
+  // Fold characters OCR commonly swaps, applied to both sides of a comparison.
+  function canon(s) { return s.replace(/0/g, "O").replace(/1/g, "I").replace(/5/g, "S"); }
+
+  function ocrContext(text) {
+    var n = canon(norm(text));
+    var toks = n ? n.split(" ") : [];
+    var set = {}, uniq = [];
+    for (var i = 0; i < toks.length; i++) if (!set[toks[i]]) { set[toks[i]] = true; uniq.push(toks[i]); }
+    var joined = toks.join("");
+    // Collector numbers as printed on the card, e.g. "179/250" or "3/5".
+    var nums = {}, re = /(\d{1,3})\s*\/\s*(\d{1,3})/g, m;
+    while ((m = re.exec(String(text || "")))) {
+      var a = parseInt(m[1], 10), b = parseInt(m[2], 10);
+      nums[String(a)] = true; nums[a + "/" + b] = true;
+    }
+    return { toks: uniq, set: set, joined: joined, nums: nums, memo: {} };
+  }
+
+  // How well one casting-name word appears in the OCR text (0..1). Exact word,
+  // a word glued to its neighbours (OCR often drops spaces), or a close typo.
+  function tokenSim(t, ctx) {
+    if (Object.prototype.hasOwnProperty.call(ctx.memo, t)) return ctx.memo[t];
+    var key = t;
+    t = canon(t);
+    var best = ctx.set[t] ? 1 : 0;
+    if (!best && t.length >= 4) {
+      if (t.length >= 5 && ctx.joined.indexOf(t) !== -1) best = 0.9;
+      for (var i = 0; i < ctx.toks.length && best < 1; i++) {
+        var o = ctx.toks[i];
+        if (o.length < 3 || Math.abs(o.length - t.length) > 2) continue;
+        var s = 1 - lev(t, o) / Math.max(t.length, o.length);
+        if (s > best) best = s;
+      }
+      // Model codes: a read number that ends the code ("34" for "BNR34").
+      if (best < 0.7 && /\d/.test(t)) {
+        for (var q = 0; q < ctx.toks.length; q++) {
+          var d = ctx.toks[q];
+          if (d.length >= 2 && /^\d+$/.test(d) && t.slice(-d.length) === d) { best = 0.75; break; }
+        }
+      }
+      if (best < 0.7) best = 0;
+    }
+    ctx.memo[key] = best;
+    return best;
+  }
+
+  function matchCards(text) {
+    if (!SC.index) return [];
+    var ctx = ocrContext(text);
+    if (!ctx.toks.length) return [];
+    var titles = SC.index.titles, out = [];
+    for (var i = 0; i < titles.length; i++) {
+      var T = titles[i], tot = 0, got = 0, sims = [], k;
+      for (k = 0; k < T.toks.length; k++) sims[k] = tokenSim(T.toks[k].t, ctx);
+      for (k = 0; k < T.pairs.length; k++) {
+        var pr = T.pairs[k];
+        if (ctx.joined.indexOf(pr.s) !== -1) {
+          for (var g3 = pr.a; g3 <= pr.b; g3++) sims[g3] = Math.max(sims[g3], 0.95);
+        }
+      }
+      var strong = false;
+      for (k = 0; k < T.toks.length; k++) {
+        tot += T.toks[k].w; got += T.toks[k].w * sims[k];
+        if (sims[k] >= 0.85 && !T.toks[k].boiler && T.toks[k].t.length >= 3) strong = true;
+      }
+      if (!tot) continue;
+      var cov = got / tot;
+      // Coverage of the name dominates; longer fully-matched names win ties
+      // ("Porsche 911 GT3 RS" over "Porsche 911" when both are on the card).
+      var base = cov * 0.85 + Math.min(got / 30, 1) * 0.15;
+      // Names made only of card boilerplate ("Hot Wheels …") need more proof.
+      // Only when the whole name is there (e.g. typed in by hand).
+      if (!T.content) base = cov >= 0.95 ? base * 0.6 : 0;
+      // Otherwise at least one real word of the name must be clearly on the
+      // card; fuzzy hits on boilerplate alone ("Fore Wheeler") don't count.
+      else if (!strong) base = 0;
+      for (var j = 0; j < T.cars.length; j++) {
+        var c = T.cars[j], s = base, skuHit = false;
+        if (c.sku.length >= 5 && ctx.joined.indexOf(canon(c.sku)) !== -1) { s += 0.6; skuHit = true; }
+        if (cov >= 0.5 && c.num && ctx.nums[c.num]) s += 0.1;
+        // Low bar on purpose: one clearly-read distinctive word ("SKYLINE")
+        // should still list candidates. Pure boilerplate already scored 0.
+        if (s >= 0.3) out.push({ car: c, score: s, sku: skuHit });
+      }
+    }
+    out.sort(function (a, b) {
+      return b.score - a.score || parseInt(b.car.year, 10) - parseInt(a.car.year, 10);
+    });
+    // Extra room so colour re-ranking can pull the right variant up.
+    return out.slice(0, 40);
+  }
+
+  // ---- Car colour ----
+  // The car's colour is measured from the photo (the blister area above the
+  // name) and compared with each match's body_color description, so variants
+  // of the same casting are ordered by how well their colour fits.
+
+  function srgbToLab(r, g, b) {
+    function lin(v) { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+    r = lin(r); g = lin(g); b = lin(b);
+    var x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
+    var y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+    var z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+    function f(t) { return t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116; }
+    var fx = f(x), fy = f(y), fz = f(z);
+    return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+  }
+  function deltaE(a, b) {
+    var d0 = a[0] - b[0], d1 = a[1] - b[1], d2 = a[2] - b[2];
+    return Math.sqrt(d0 * d0 + d1 * d1 + d2 * d2);
+  }
+  function hexRgb(h) { var n = parseInt(h, 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+
+  // Plain colour families. Both sides are reduced to one of these names:
+  // the database text by its colour word ("Spectraflame Black" → black,
+  // "Metalflake Bayside Blue" → blue, "Dark Red" → red), and the camera
+  // colour by its nearest reference shade below.
+  var FAMILY_LABEL = {
+    black: "Black", white: "White", gray: "Gray / Silver", red: "Red", orange: "Orange",
+    yellow: "Yellow", green: "Green", blue: "Blue", purple: "Purple", pink: "Pink", brown: "Brown"
+  };
+  // Database colour words → family. Finish words (spectraflame, metalflake,
+  // gloss, matte, pearl, satin, dark, light…) are simply not listed.
+  var COLOR_FAMILY = {
+    black: "black", nero: "black", jet: "black",
+    white: "white", bianco: "white", ivory: "white", cream: "white",
+    silver: "gray", chrome: "gray", zamac: "gray", steel: "gray", gray: "gray", grey: "gray",
+    grigio: "gray", gunmetal: "gray", charcoal: "gray", unpainted: "gray",
+    red: "red", rosso: "red", maroon: "red", burgundy: "red", cherry: "red", brick: "red",
+    crimson: "red", scarlet: "red", wine: "red",
+    orange: "orange", arancio: "orange", copper: "orange", tangerine: "orange",
+    yellow: "yellow", giallo: "yellow", lemon: "yellow", mustard: "yellow", gold: "yellow", golden: "yellow",
+    green: "green", verde: "green", olive: "green", lime: "green", mint: "green", seafoam: "green",
+    forest: "green", antifreeze: "green", emerald: "green",
+    blue: "blue", blu: "blue", navy: "blue", royal: "blue", sky: "blue", aqua: "blue",
+    turquoise: "blue", teal: "blue", cyan: "blue", indigo: "blue", azure: "blue", cobalt: "blue",
+    purple: "purple", violet: "purple", plum: "purple", lavender: "purple", magenta: "purple",
+    pink: "pink", rose: "pink", fuchsia: "pink",
+    brown: "brown", tan: "brown", beige: "brown", sand: "brown", khaki: "brown", bronze: "brown",
+    champagne: "brown", chocolate: "brown", caramel: "brown",
+    // Less common names seen in the catalog.
+    sublime: "green", evergreen: "green", oxblood: "red", aquamarine: "blue", ultramarine: "blue",
+    fuscia: "pink", ebony: "black", goldenrod: "yellow", gelb: "yellow", anthracite: "gray",
+    mango: "orange", beer: "brown"
+  };
+  // Reference shades per family, for classifying the camera colour (several
+  // per family so dark and light versions land in the right place).
+  var FAMILY_SHADES = {
+    black: ["121212", "2a2a2e"],
+    white: ["f2f2f2", "e6e6e0", "efe6c8"],
+    gray: ["808080", "b8bcc2", "5a5f66", "a9a9a4"],
+    red: ["c8102e", "8a1020", "e03a3a", "6d1a26"],
+    orange: ["f07a1a", "d9601a", "b06a3a"],
+    yellow: ["f2cf1d", "e8d84a", "c9a43c"],
+    green: ["1f8a3a", "1f4d2b", "8fd12a", "6b6b2a", "7fd1b0"],
+    blue: ["1f5fd0", "1b2a5c", "74b6e6", "30c0c0", "1b8a8a"],
+    purple: ["6a2c91", "b8a4dc", "c2187a", "4a2060"],
+    pink: ["ef7fb0", "ff4fa3"],
+    brown: ["6b4426", "c8a77a", "8c6a3a", "4a3020"]
+  };
+  var SHADE_LAB = [];
+  Object.keys(FAMILY_SHADES).forEach(function (f) {
+    FAMILY_SHADES[f].forEach(function (h) { var c = hexRgb(h); SHADE_LAB.push({ f: f, lab: srgbToLab(c[0], c[1], c[2]) }); });
+  });
+  function familyOfLab(lab) {
+    var best = null, bd = Infinity;
+    for (var i = 0; i < SHADE_LAB.length; i++) {
+      var d = deltaE(lab, SHADE_LAB[i].lab);
+      if (d < bd) { bd = d; best = SHADE_LAB[i].f; }
+    }
+    return best;
+  }
+  var familyNameCache = {};
+
+  // body_color text → family, or null (clear / unknown). Uses the first
+  // colour word ("Red/White w/ Stripes" → red, "Spectraflame Black" → black).
+  function familyFromName(name) {
+    var key = String(name || "").toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(familyNameCache, key)) return familyNameCache[key];
+    var s = key.replace(/\(.*?\)/g, " ").split(/\/|\bw\/|\bwith\b|\band\b|&|,/)[0];
+    var words = s.split(/[^a-z]+/).filter(Boolean), fam = null;
+    // The last colour word wins ("Metallic Sky Blue" → blue, not sky).
+    for (var i = 0; i < words.length; i++) if (COLOR_FAMILY[words[i]]) fam = COLOR_FAMILY[words[i]];
+    familyNameCache[key] = fam;
+    return fam;
+  }
+
+  // Small k-means over Lab pixels. Returns clusters { lab, n }.
+  function kmeans(px, k) {
+    if (!px.length) return [];
+    var cs = [], i, j, it;
+    for (i = 0; i < k; i++) cs.push(px[Math.floor((i + 0.5) * px.length / k)].slice());
+    var asg = new Int32Array(px.length);
+    for (it = 0; it < 8; it++) {
+      var sums = cs.map(function () { return [0, 0, 0, 0]; });
+      for (i = 0; i < px.length; i++) {
+        var best = 0, bd = Infinity;
+        for (j = 0; j < k; j++) { var d = deltaE(px[i], cs[j]); if (d < bd) { bd = d; best = j; } }
+        asg[i] = best;
+        sums[best][0] += px[i][0]; sums[best][1] += px[i][1]; sums[best][2] += px[i][2]; sums[best][3]++;
+      }
+      for (j = 0; j < k; j++) if (sums[j][3]) cs[j] = [sums[j][0] / sums[j][3], sums[j][1] / sums[j][3], sums[j][2] / sums[j][3]];
+    }
+    var n = cs.map(function () { return 0; });
+    for (i = 0; i < px.length; i++) n[asg[i]]++;
+    return cs.map(function (c, j) { return { lab: c, n: n[j] }; }).filter(function (c) { return c.n > 0; });
+  }
+
+  // Lab pixels of a region of `src` given as fractions of its size, sampled
+  // on a grid of about `n` pixels along the longer side.
+  function regionLab(src, r, n) {
+    var W = src.width, H = src.height;
+    var sx = r[0] * W, sy = r[1] * H, sw = (r[2] - r[0]) * W, sh = (r[3] - r[1]) * H;
+    if (sw < 2 || sh < 2) return [];
+    var k = n / Math.max(sw, sh), cw = Math.max(2, Math.round(sw * k)), ch = Math.max(2, Math.round(sh * k));
+    var c = document.createElement("canvas");
+    c.width = cw; c.height = ch;
+    var g = c.getContext("2d", { willReadFrequently: true });
+    g.drawImage(src, sx, sy, sw, sh, 0, 0, cw, ch);
+    var p = g.getImageData(0, 0, cw, ch).data, out = [];
+    for (var i = 0; i < p.length; i += 4) out.push(srgbToLab(p[i], p[i + 1], p[i + 2]));
+    return out;
+  }
+
+  // Where the car sits, as fractions of the captured card: the blister just
+  // above the name zone. Live capture is cropped to the card frame; a picked
+  // photo isn't, so it uses a looser centre area.
+  var CAR_AREA_LIVE = [0.12, 0.40, 0.88, 0.74];
+  var CAR_AREA_PHOTO = [0.20, 0.35, 0.80, 0.75];
+
+  // Dominant car colours: clusters of the car area, minus ones that match the
+  // card background beside it, with glare and shadow played down.
+  // Returns up to 3 { lab, rgb, w } with weights summing to 1, or null.
+  function measureCarColors(src, area) {
+    try {
+      var car = regionLab(src, area, 56);
+      // Background: strips just left and right of the car area (card or
+      // blister around the car, whether or not the image is cropped to it).
+      var bg = regionLab(src, [Math.max(0, area[0] - 0.08), area[1], area[0], area[3]], 20)
+        .concat(regionLab(src, [area[2], area[1], Math.min(1, area[2] + 0.08), area[3]], 20));
+      if (car.length < 20) return null;
+      var bgC = kmeans(bg, 3).filter(function (c) { return c.n / bg.length > 0.15; });
+      var out = kmeans(car, 5).map(function (c) {
+        var w = c.n / car.length, chroma = Math.sqrt(c.lab[1] * c.lab[1] + c.lab[2] * c.lab[2]);
+        for (var j = 0; j < bgC.length; j++) if (deltaE(c.lab, bgC[j].lab) < 18) { w *= 0.1; break; }
+        if (c.lab[0] > 88 && chroma < 8) w *= 0.5;  // blister glare
+        if (c.lab[0] < 30 && chroma < 8) w *= 0.3;  // tyres, windows, shadows
+        return { lab: c.lab, w: w };
+      });
+      // Merge clusters into colour families ("dark green" + "green" → green).
+      var fams = {}, tot = 0;
+      out.forEach(function (c) {
+        var f = familyOfLab(c.lab);
+        if (!fams[f]) fams[f] = { family: f, w: 0, lab: c.lab, top: 0 };
+        fams[f].w += c.w; tot += c.w;
+        if (c.w > fams[f].top) { fams[f].top = c.w; fams[f].lab = c.lab; } // swatch = biggest shade
+      });
+      if (!tot) return null;
+      var list = Object.keys(fams).map(function (k) {
+        var f = fams[k];
+        return { family: f.family, w: f.w / tot, rgb: labToRgb(f.lab) };
+      });
+      list.sort(function (a, b) { return b.w - a.w; });
+      return list.filter(function (c) { return c.w >= 0.12; }).slice(0, 2);
+    } catch (e) { return null; }
+  }
+
+  function labToRgb(lab) {
+    var fy = (lab[0] + 16) / 116, fx = fy + lab[1] / 500, fz = fy - lab[2] / 200;
+    function fi(t) { return t > 0.206893 ? t * t * t : (t - 16 / 116) / 7.787; }
+    var x = fi(fx) * 0.95047, y = fi(fy), z = fi(fz) * 1.08883;
+    var r = x * 3.2406 - y * 1.5372 - z * 0.4986, g = -x * 0.9689 + y * 1.8758 + z * 0.0415,
+        b = x * 0.0557 - y * 0.2040 + z * 1.0570;
+    function gam(v) { v = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055; return Math.max(0, Math.min(255, Math.round(v * 255))); }
+    return [gam(r), gam(g), gam(b)];
+  }
+
+  // Does a body_color description name the car's colour? 1 = same family as
+  // the main measured colour, 0.5 = the secondary one, 0 = neither, null =
+  // unknown on either side (no re-ranking then).
+  function colorFit(measured, name) {
+    var fam = familyFromName(name);
+    if (!measured || !measured.length || !fam) return null;
+    if (measured[0].family === fam) return 1;
+    if (measured[1] && measured[1].family === fam) return 0.5;
+    return 0;
+  }
+
+  function rgbCss(rgb) { return "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")"; }
+
+  // ---- Camera / capture ----
+  function stopCamera() {
+    if (SC.stream) {
+      SC.stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+      SC.stream = null;
+    }
+    $scanVideo.srcObject = null;
+  }
+
+  function noCamera() {
+    setMode("nocam");
+    setStatus("Camera unavailable. Tap Photo to take or choose a picture.");
+  }
+
+  function startCamera() {
+    var run = ++SC.run;
+    $scanSnap.removeAttribute("src");
+    setMode("live");
+    setStatus("Fit the whole card in the frame, name in the blue zone");
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { noCamera(); return; }
+    navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 2560 }, height: { ideal: 1440 } }
+    }).then(function (stream) {
+      if (!SC.open || run !== SC.run) {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        return;
+      }
+      // Ask for continuous autofocus where supported (small text needs it).
+      try {
+        var tr = stream.getVideoTracks()[0];
+        var caps = tr.getCapabilities ? tr.getCapabilities() : {};
+        if (caps.focusMode && caps.focusMode.indexOf("continuous") !== -1) {
+          tr.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(function () {});
+        }
+      } catch (e) {}
+      SC.stream = stream;
+      $scanVideo.srcObject = stream;
+      var p = $scanVideo.play();
+      if (p && p.catch) p.catch(function () {});
+    }).catch(function () {
+      if (SC.open && run === SC.run) noCamera();
+    });
+  }
+
+  // Draw a region of an image/video into a canvas whose width is `targetW`
+  // (upscaling at most 3x), so small printed text becomes large enough to read.
+  function toCanvas(src, sx, sy, sw, sh, targetW) {
+    var f = (targetW || 2000) / sw;
+    if (f > 3) f = 3;
+    if (sh * f > 2400) f = 2400 / sh; // keep OCR time bounded on tall images
+    var c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(sw * f));
+    c.height = Math.max(1, Math.round(sh * f));
+    var g = c.getContext("2d");
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = "high";
+    g.drawImage(src, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    return c;
+  }
+
+  // Grayscale + contrast stretch (1st–99th percentile), in place. Card print
+  // is often low-contrast through the plastic blister.
+  function enhance(c) {
+    var g = c.getContext("2d");
+    var d = g.getImageData(0, 0, c.width, c.height), p = d.data, hist = new Array(256), i;
+    for (i = 0; i < 256; i++) hist[i] = 0;
+    for (i = 0; i < p.length; i += 4) {
+      var y = (p[i] * 0.299 + p[i + 1] * 0.587 + p[i + 2] * 0.114) | 0;
+      p[i] = y; hist[y]++;
+    }
+    var n = p.length / 4, lo = 0, hi = 255, acc = 0;
+    for (i = 0; i < 256; i++) { acc += hist[i]; if (acc > n * 0.01) { lo = i; break; } }
+    for (acc = 0, i = 255; i >= 0; i--) { acc += hist[i]; if (acc > n * 0.01) { hi = i; break; } }
+    var span = Math.max(1, hi - lo);
+    for (i = 0; i < p.length; i += 4) {
+      var v = (p[i] - lo) * 255 / span;
+      v = v < 0 ? 0 : v > 255 ? 255 : v;
+      p[i] = p[i + 1] = p[i + 2] = v;
+    }
+    g.putImageData(d, 0, 0);
+    return c;
+  }
+
+  // Crop the live video to the on-screen name box (plus some slack above and
+  // below for imperfect aim). The video is shown with object-fit: cover, so
+  // map box coordinates back to video pixels.
+  // Fraction of the card frame (from the top) where the name zone starts.
+  // Matches .scanzone in the CSS; read with a little slack above it.
+  var NAME_ZONE_TOP = 0.66, NAME_ZONE_SLACK = 0.06;
+
+  // Crop the live video to the on-screen card frame. The video is shown with
+  // object-fit: cover, so map frame coordinates back to video pixels.
+  // Returns { regions, preview }: the enlarged name zone at the bottom of the
+  // card is read first; the whole card is only read if that finds no match.
+  function captureFrame() {
+    var vw = $scanVideo.videoWidth, vh = $scanVideo.videoHeight;
+    if (!vw || !vh) return null;
+    var st = $scanStage.getBoundingClientRect(), fr = $scanFrame.getBoundingClientRect();
+    var scale = Math.max(st.width / vw, st.height / vh);
+    var ox = (st.width - vw * scale) / 2, oy = (st.height - vh * scale) / 2;
+    var x0 = Math.max(0, (fr.left - st.left - ox) / scale);
+    var y0 = Math.max(0, (fr.top - st.top - oy) / scale);
+    var x1 = Math.min(vw, (fr.right - st.left - ox) / scale);
+    var y1 = Math.min(vh, (fr.bottom - st.top - oy) / scale);
+    if (x1 - x0 < 10 || y1 - y0 < 10) { x0 = 0; y0 = 0; x1 = vw; y1 = vh; }
+    var w = x1 - x0, h = y1 - y0;
+    var zy = y0 + h * Math.max(0, NAME_ZONE_TOP - NAME_ZONE_SLACK);
+    var card = toCanvas($scanVideo, x0, y0, w, h, 1200);
+    return {
+      preview: card,
+      regions: [
+        enhance(toCanvas($scanVideo, x0, zy, w, y1 - zy, 2000)), // name zone
+        enhance(toCanvas($scanVideo, x0, y0, w, h, 1400))        // whole card
+      ]
+    };
+  }
+
+  // A whole photo: read overlapping horizontal strips, enlarged, starting at
+  // the bottom (where the name is printed), then the full image last.
+  function photoRegions(img) {
+    var W = img.naturalWidth, H = img.naturalHeight, out = [];
+    var bandH = H / 3, step = H / 6;
+    for (var y = H - bandH; y >= -1; y -= step) {
+      out.push(enhance(toCanvas(img, 0, Math.max(0, y), W, bandH, 2000)));
+    }
+    out.push(enhance(toCanvas(img, 0, 0, W, H, 1600)));
+    return out;
+  }
+
+  // Keep only lines with real characters, without duplicates.
+  function cleanOcr(t) {
+    var seen = {}, out = [];
+    String(t || "").split(/\r?\n/).forEach(function (ln) {
+      ln = ln.replace(/\s+/g, " ").trim();
+      if (!/[A-Za-z0-9]{2,}/.test(ln)) return;
+      var k = ln.toUpperCase();
+      if (seen[k]) return;
+      seen[k] = true;
+      out.push(ln);
+    });
+    return out.join("\n");
+  }
+
+  // Read a list of image regions in order (the name strip for live capture;
+  // the whole photo then enlarged strips for a picked photo), stopping early
+  // once the text gives a confident match.
+  // carArea: where the car sits in `preview` (fractions), for colour matching.
+  function runScan(regions, preview, carArea) {
+    var run = ++SC.run;
+    stopCamera();
+    SC.carColors = preview && carArea ? measureCarColors(preview, carArea) : null;
+    try { $scanSnap.src = (preview || regions[0]).toDataURL("image/jpeg", 0.85); } catch (e) {}
+    setMode("busy");
+    setStatus(SC.engine ? "Reading card…" : "Loading text reader (first time only)…");
+    // text: lines the model is sure of. raw: every line, used if nothing
+    // passed (better something to edit than an empty box).
+    var text = "", raw = "";
+    function good() { var m = matchCards(text); return m.length && m[0].score >= 0.8; }
+    Promise.all([getEngine(), getIndex()]).then(function (res) {
+      var engine = res[0], i = 0;
+      function next() {
+        if (run !== SC.run) return null;
+        if (text.trim() && good()) return text;
+        if (i >= regions.length) return text.trim() ? text : raw;
+        setStatus("Reading card… " + Math.round(100 * i / regions.length) + "%");
+        return engine.recognize(regions[i++]).then(function (lines) {
+          if (run !== SC.run) return;
+          lines.forEach(function (l) {
+            if (isNoiseLine(l.text)) return; // "MATTEL", "3+", logo, warnings
+            raw += "\n" + l.text;
+            if (l.score >= OCR_MIN_SCORE) text += "\n" + l.text;
+          });
+        }).then(next);
+      }
+      return next();
+    }).then(function (text) {
+      if (run !== SC.run || text == null) return;
+      showScanResults(cleanOcr(text));
+    }).catch(function (err) {
+      if (run !== SC.run) return;
+      showScanResults("", "Couldn't read the card: " + (err && err.message ? err.message : err));
+    });
+  }
+
+  // ---- Results ----
+  function showScanResults(text, err) {
+    setMode("review");
+    setStatus("");
+    var cols = SC.carColors;
+    $scanColor.innerHTML = cols && cols.length
+      ? "Car colour " + cols.map(function (c, i) {
+          return '<span class="sw" style="background:' + rgbCss(c.rgb) + '"></span>' +
+                 '<span class="swn' + (i ? " minor" : "") + '">' + esc(FAMILY_LABEL[c.family] || c.family) + "</span>";
+        }).join("")
+      : "";
+    $scanText.value = text;
+    renderScanMatches(err);
+    $scanText.scrollTop = 0;
+  }
+
+  function renderScanMatches(err) {
+    if (err) { $scanList.innerHTML = '<div class="empty">' + esc(err) + "</div>"; return; }
+    if (!SC.index) {
+      $scanList.innerHTML = '<div class="empty">Loading catalog…</div>';
+      getIndex().then(function () { renderScanMatches(); }, function (e) {
+        renderScanMatches("Couldn't load the catalog index: " + e.message);
+      });
+      return;
+    }
+    if (!$scanText.value.trim()) {
+      SC.matches = [];
+      $scanList.innerHTML = '<div class="empty">No text found. Try again closer and without glare, ' +
+                            "or type the car name above.</div>";
+      return;
+    }
+    var m = matchCards($scanText.value);
+    if (!m.length) {
+      SC.matches = [];
+      $scanList.innerHTML = '<div class="empty">No matching car found. Edit the text above ' +
+                            "to just the car name, or retake the photo.</div>";
+      return;
+    }
+    // Colour re-ranking: a small bonus, so it orders variants of the same
+    // casting (same name score) but can't beat a clearly better name match.
+    var colors = SC.carColors;
+    m.forEach(function (x) {
+      x.fit = colorFit(colors, x.car.color);
+      x.rank = x.score + (x.fit == null ? 0 : 0.12 * x.fit);
+    });
+    m.sort(function (a, b) {
+      return b.rank - a.rank || parseInt(b.car.year, 10) - parseInt(a.car.year, 10);
+    });
+    m = SC.matches = m.slice(0, 20);
+    var html = "";
+    for (var i = 0; i < m.length; i++) {
+      var c = m[i].car;
+      var pct = Math.round(Math.min(m[i].score, 1) * 100);
+      var meta = [c.year, labelFor(c.assort), c.series, c.num ? "#" + c.num : "", c.color]
+                 .filter(Boolean).join(" · ");
+      var tags = "";
+      if (c.rarity === "sth") tags += '<span class="tag gold">Super TH</span>';
+      else if (c.rarity === "th") tags += '<span class="tag silver">Treasure Hunt</span>';
+      else if (c.rarity === "chase") tags += '<span class="tag chase">Chase</span>';
+      if (m[i].sku) tags += '<span class="tag">SKU ' + esc(c.sku) + " match</span>";
+      // Its database colour is the car's main colour.
+      if (m[i].fit === 1) {
+        tags += '<span class="tag colormatch">Colour match</span>';
+      }
+      html +=
+        '<div class="scanrow' + (i === 0 && m[i].score >= 0.8 ? " best" : "") + '" data-i="' + i + '">' +
+          '<div class="sthumb">' +
+            (c.img ? '<img loading="lazy" src="' + esc(scanImg(c.id)) + '" alt="">' : NOIMG_HTML) +
+          "</div>" +
+          '<div class="bd"><div class="nm">' + esc(c.title) + "</div>" +
+            '<div class="mt">' + esc(meta) + "</div>" +
+            (tags ? '<div class="tags">' + tags + "</div>" : "") +
+          "</div>" +
+          '<span class="pct">' + pct + "%</span>" +
+        "</div>";
+    }
+    $scanList.innerHTML = html;
+  }
+
+  // Load the match's collection if needed, then hand off to the detail view.
+  function openScanMatch(c) {
+    var run = ++SC.run;
+    function open() {
+      if (!SC.open || run !== SC.run) return;
+      for (var i = 0; i < CARS.length; i++) {
+        if (CARS[i].id === c.id) {
+          closeScanner(true);  // keep its history entry; the detail reuses it
+          showDetail(CARS[i], { replaceHistory: true });
+          return;
+        }
+      }
+      setStatus("Couldn't open this car.");
+    }
+    if (curAssort === c.assort && curYear === c.year && CARS.length) { open(); return; }
+    setStatus("Opening…");
+    $search.value = ""; queryText = "";
+    loadCollection(c.assort, c.year).then(open);
+  }
+
+  // ---- Open / close ----
+  function openScanner() {
+    if (SC.open) return;
+    SC.open = true;
+    $scanner.setAttribute("aria-hidden", "false");
+    $scanText.value = "";
+    $scanList.innerHTML = "";
+    try { history.pushState({ scan: true }, ""); } catch (e) {}
+    if (tg && tg.BackButton) {
+      tg.BackButton.show();
+      tg.BackButton.onClick(closeScanner);
+    }
+    // Start downloading the catalog index and OCR engine while the user aims.
+    getIndex().catch(function () {});
+    getEngine().catch(function () {});
+    startCamera();
+  }
+
+  // fromPop / keepHistory = true: don't pop the history entry ourselves.
+  function closeScanner(fromPop) {
+    if (!SC.open) return;
+    SC.open = false;
+    SC.run++;
+    stopCamera();
+    $scanner.className = "scanner";
+    $scanner.setAttribute("aria-hidden", "true");
+    $scanSnap.removeAttribute("src");
+    if (tg && tg.BackButton) {
+      tg.BackButton.hide();
+      tg.BackButton.offClick(closeScanner);
+    }
+    if (fromPop !== true) { try { history.back(); } catch (e) {} }
+  }
+
+  $scanBtn.addEventListener("click", openScanner);
+  $scanClose.addEventListener("click", function () { closeScanner(); });
+  $scanShutter.addEventListener("click", function () {
+    var c = captureFrame();
+    if (!c) { setStatus("Camera is starting…"); return; }
+    if (tg && tg.HapticFeedback) { try { tg.HapticFeedback.impactOccurred("medium"); } catch (e) {} }
+    runScan(c.regions, c.preview, CAR_AREA_LIVE);
+  });
+  $scanRetake.addEventListener("click", startCamera);
+  $scanUpload.addEventListener("click", function () { $scanFile.click(); });
+  $scanFile.addEventListener("change", function () {
+    var f = $scanFile.files && $scanFile.files[0];
+    $scanFile.value = "";
+    if (!f || !SC.open) return;
+    var url = URL.createObjectURL(f), img = new Image();
+    img.onload = function () {
+      var regions = photoRegions(img);
+      var preview = toCanvas(img, 0, 0, img.naturalWidth, img.naturalHeight, 1200);
+      URL.revokeObjectURL(url);
+      runScan(regions, preview, CAR_AREA_PHOTO);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); setStatus("Couldn't open that image."); };
+    img.src = url;
+  });
+  var scanTextTimer = null;
+  $scanText.addEventListener("input", function () {
+    clearTimeout(scanTextTimer);
+    scanTextTimer = setTimeout(function () { renderScanMatches(); }, 250);
+  });
+  $scanList.addEventListener("click", function (e) {
+    var row = e.target.closest ? e.target.closest(".scanrow") : null;
+    if (!row) return;
+    var m = SC.matches[parseInt(row.getAttribute("data-i"), 10)];
+    if (m) openScanMatch(m.car);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (SC.open && e.key === "Escape") closeScanner();
   });
 
   // --- Boot: load the manifest, then the default collection ---

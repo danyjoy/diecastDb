@@ -77,6 +77,26 @@ GitHub Pages redeploys automatically within a minute or two. No code change
 needed — the assortment menu and year dropdown build themselves from the
 manifest.
 
+## Card scanner
+
+The camera button in the search bar opens a scanner. Point the phone at a
+blister card (or pick a photo) and the app reads the card text on the device
+with [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) mobile models running
+on [ONNX Runtime Web](https://onnxruntime.ai/), then fuzzy-matches it against
+every car in every year and assortment. Tap a match to open it. Nothing is
+uploaded; the first scan downloads ~27 MB (models + runtime), cached after that.
+
+- `ocr.js` — the text detection + recognition pipeline.
+- `models/` — the ONNX models and character list (see `models/README.md`).
+
+Matching uses `data/scan-index.json`, a compact cross-year list of all cars
+(~320 KB gzipped, fetched only when the scanner opens). `scripts/update-catalog.js`
+rebuilds it automatically; after adding or editing data by hand, run:
+
+```bash
+node scripts/build-scan-index.js
+```
+
 ## Data source
 
 Catalog data is the publicly listed Hot Wheels info from
