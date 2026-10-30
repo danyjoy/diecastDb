@@ -122,8 +122,9 @@ have or want, so that I can spot them while browsing a year.
 
 **Acceptance criteria**
 
-1. WHEN a grid card's car is in the Collection THEN the card SHALL show
-   **− n +** with the number of copies.
+1. WHEN a grid card's car is in the Collection THEN the card SHALL show a
+   tick (with ×n for more than one copy). Tapping it SHALL open the car,
+   where the count can be changed.
 2. WHEN a grid card's car is in the Wishlist THEN its bookmark SHALL be
    filled.
 3. The controls SHALL NOT hide the existing TH / STH / Chase / Soft Chase

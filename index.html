@@ -689,6 +689,18 @@
   .ownctl.tile { position: absolute; top: 7px; right: 7px; z-index: 2;
     display: flex; align-items: center; gap: 6px; }
   .ownctl.tile .wish { order: -1; } /* bookmark left of +, so + stays in the corner */
+  /* Owned (grid only): a tick, plus ×n for several copies. Not a button. */
+  .qown {
+    height: 32px; min-width: 32px; padding: 0 6px; gap: 3px; border-radius: 9px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--own); color: #fff; font-weight: 800; font-size: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.2); pointer-events: none;
+  }
+  .qown svg.pm { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 3;
+    stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Rows with controls (My cars, scan results): photo lines up with the title. */
+  .scanrow:has(> .bd > .ownctl) { align-items: flex-start; }
 
   /* Off the white photo (detail view, scan results, My cars): dark controls
      that match the theme. The grid tile keeps the white ones above. */
@@ -3257,6 +3269,7 @@
 
   var BOOKMARK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 3.5h11v17l-5.5-4-5.5 4z"/></svg>';
   var PLUS_SVG = '<svg class="pm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+  var CHECK_SVG = '<svg class="pm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   var MINUS_SVG = '<svg class="pm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>';
 
   // Collection controls for one car: "+" (not owned) or "− n +" (copies
@@ -3264,6 +3277,12 @@
   // "row" (scan results, My cars) or "full" (detail view, with labels).
   function ctlHtml(id, mode) {
     var q = L.qty(id), w = L.has("wishlist", id), det = mode === "full";
+    // Grid tile, owned: just a tick (and ×n). It isn't a button, so a tap
+    // opens the car, where the count can be changed.
+    if (q && mode === "tile") {
+      return '<span class="qown" title="In your collection' + (q > 1 ? " (" + q + ")" : "") + '">' +
+               CHECK_SVG + (q > 1 ? '<span class="n">×' + q + "</span>" : "") + "</span>";
+    }
     var add = q
       ? (det ? '<span class="qlbl">In your collection</span>' : "") +
         '<span class="qty" role="group" aria-label="Copies in your collection">' +

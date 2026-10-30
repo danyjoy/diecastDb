@@ -97,6 +97,11 @@
   line.
   - _Requirements: 3.1, 3.3_
 
+- [x] 6.10 Grid shows a ✓ (×n) for owned cars instead of − n +; the count is
+  changed in the detail view. Rows with controls (My cars, scanner) are
+  top-aligned so the photo lines up with the title.
+  - _Requirements: 4.1_
+
 - [ ] 8. Final manual test pass
   - Run the checks in the design's Testing section on desktop Chrome and
     Safari, a phone over the HTTPS tunnel, and the Telegram Mini App (after

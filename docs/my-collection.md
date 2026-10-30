@@ -23,8 +23,10 @@ The spec is in `.kiro/specs/my-collection-sync/`.
   side by side: bookmark, then +), in the car detail view, on card scanner
   matches and on My cars rows. On the white photos they're white; elsewhere
   they use the dark theme:
-  - **+** adds the car to the collection. It then turns into **− n +**, the
-    number of copies owned (up to 999). **−** at 1 removes the car.
+  - **+** adds the car to the collection. On grid cards it then becomes a
+    green **✓** (with **×n** for several copies); tapping it opens the car.
+    In the detail view, scanner and My cars it becomes **− n +**, the number
+    of copies owned (up to 999). **−** at 1 removes the car.
   - The **bookmark** adds the car to the wishlist or removes it (filled pink
     when on the wishlist). A short message confirms it.
   - Adding a wishlisted car to the collection takes it off the wishlist, and
@@ -124,8 +126,9 @@ answers `origin_mismatch`.
 
 - Signed out: the account sheet shows Sign in with Google. + on a car signs
   in and then adds it.
-- Grid: + turns into − 1 +, + again shows 2, − back to 0 shows + again. The
-  bookmark fills pink. Neither opens the car.
+- Grid: + turns into a green ✓ without opening the car; the bookmark fills
+  pink. Tapping ✓ opens the car; + there shows ×2 on the grid; − back to 0
+  shows + on the grid again.
 - Scanner: scan or type a car name, tap + or the bookmark on a result. The
   scanner stays open, and the car shows in My cars.
 - My cars → open a car → Back (in-page button and phone back gesture): you
