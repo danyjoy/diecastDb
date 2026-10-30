@@ -24,7 +24,7 @@ The spec is in `.kiro/specs/my-collection-sync/`.
   matches and on My cars rows. On the white photos they're white; elsewhere
   they use the dark theme:
   - **+** adds the car to the collection. On grid cards it then becomes a
-    green **✓** (with **×n** for several copies); tapping it opens the car.
+    blue **✓** (with **×n** for several copies); tapping it opens the car.
     In the detail view, scanner and My cars it becomes **− n +**, the number
     of copies owned (up to 999). **−** at 1 removes the car.
   - The **bookmark** adds the car to the wishlist or removes it (filled pink
@@ -126,7 +126,7 @@ answers `origin_mismatch`.
 
 - Signed out: the account sheet shows Sign in with Google. + on a car signs
   in and then adds it.
-- Grid: + turns into a green ✓ without opening the car; the bookmark fills
+- Grid: + turns into a blue ✓ without opening the car; the bookmark fills
   pink. Tapping ✓ opens the car; + there shows ×2 on the grid; − back to 0
   shows + on the grid again.
 - Scanner: scan or type a car name, tap + or the bookmark on a result. The

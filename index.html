@@ -617,7 +617,7 @@
   .scanner.busy .scanctl { pointer-events: none; opacity: .5; }
 
   /* ---------- My collection & wishlist (browser only, see lists.js) ---------- */
-  :root { --own: #1f8a4c; --want: #d6336c; }
+  :root { --own: var(--accent); --want: #d6336c; }
   /* Search box + account button share a row; the title row stays as before. */
   .searchrow { display: flex; align-items: center; gap: 8px; }
   .searchrow .searchwrap { flex: 1; min-width: 0; }
