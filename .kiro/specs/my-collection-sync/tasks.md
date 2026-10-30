@@ -75,6 +75,11 @@
     Mini App).
   - _Requirements: 0.1, 7.2, 7.3_
 
+- [x] 6.6 Have it / Want it buttons on card scanner matches (`scanOwnHtml`,
+  `toggleScanOwn`), updated in place on `change`, and a toast on add/remove.
+  Google's script is preloaded when the scanner opens.
+  - _Requirements: 3.6_
+
 - [ ] 8. Final manual test pass
   - Run the checks in the design's Testing section on desktop Chrome and
     Safari, a phone over the HTTPS tunnel, and the Telegram Mini App (after

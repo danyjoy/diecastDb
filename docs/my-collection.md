@@ -22,6 +22,9 @@ The spec is in `.kiro/specs/my-collection-sync/`.
 - **Have it / Want it** buttons in the car detail view. Tapping one while
   signed out starts sign-in and then adds the car. *Have it* takes the car
   off the wishlist.
+- **Have it / Want it on scan results**: every match in the card scanner has
+  the same two buttons, so a scanned car can be saved without leaving the
+  scanner. Tapping the rest of the row still opens the car's detail.
 - **Grid markers**: a green ✓ (owned) or pink ♥ (wanted) at the bottom-left
   of the photo.
 - **Owned / Wanted filters** in the filter row, for the loaded collection and
@@ -115,6 +118,8 @@ answers `origin_mismatch`.
 
 - Signed out: the account sheet shows Sign in with Google. Have it on a car
   signs in and then marks it.
+- Scanner: scan or type a car name, tap Have it / Want it on a result. A
+  toast confirms, the scanner stays open, and the car shows in My cars.
 - Reload within the hour: no popup, status *Saved to your Google Drive*.
 - Two browser profiles with the same account: add on A, switch to B (tab
   focus) and the car appears. Remove on B, add another car on A, and the

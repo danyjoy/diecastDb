@@ -672,6 +672,17 @@
   .ownbtn.own[aria-pressed="true"] { background: var(--own); border-color: var(--own); color: #fff; }
   .ownbtn.want[aria-pressed="true"] { background: var(--want); border-color: var(--want); color: #fff; }
 
+  /* Have it / Want it on scanner results. */
+  .scanact { display: flex; gap: 6px; margin-top: 7px; }
+  .scanown {
+    padding: 5px 11px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--card2); color: var(--text);
+    font-size: 12px; font-weight: 700; white-space: nowrap;
+  }
+  .scanown:active { opacity: .7; }
+  .scanown.own[aria-pressed="true"] { background: var(--own); border-color: var(--own); color: #fff; }
+  .scanown.want[aria-pressed="true"] { background: var(--want); border-color: var(--want); color: #fff; }
+
   /* Owned / wanted marker on grid cards: bottom-left, clear of the rarity badge. */
   .mark {
     position: absolute; left: 7px; bottom: 7px; z-index: 1;
@@ -3066,6 +3077,7 @@
           '<div class="bd"><div class="nm">' + esc(c.title) + "</div>" +
             '<div class="mt">' + esc(meta) + "</div>" +
             (tags ? '<div class="tags">' + tags + "</div>" : "") +
+            (L ? '<div class="scanact" data-i="' + i + '">' + scanOwnHtml(c) + "</div>" : "") +
           "</div>" +
           '<span class="pct">' + pct + "%</span>" +
         "</div>";
@@ -3107,6 +3119,7 @@
     }
     // Start downloading the catalog index and OCR engine while the user aims.
     getIndex().catch(function () {});
+    if (L) L.prepare(); // Have it / Want it on results may need Google's popup
     getEngine().catch(function () {});
     startCamera();
   }
@@ -3161,6 +3174,14 @@
     scanTextTimer = setTimeout(function () { renderScanMatches(); }, 250);
   });
   $scanList.addEventListener("click", function (e) {
+    // Have it / Want it on a result: save without leaving the scanner.
+    var ob = e.target.closest ? e.target.closest(".scanown") : null;
+    if (ob) {
+      var act = ob.parentNode;
+      var sm = SC.matches[parseInt(act.getAttribute("data-i"), 10)];
+      if (sm) toggleScanOwn(ob.getAttribute("data-list"), sm.car);
+      return;
+    }
     var row = e.target.closest ? e.target.closest(".scanrow") : null;
     if (!row) return;
     var m = SC.matches[parseInt(row.getAttribute("data-i"), 10)];
@@ -3259,6 +3280,37 @@
     var signedIn = !!L.user();
     L.toggle(list, { id: car.id, y: curYear, a: curAssort, t: car.title }).then(function (on) {
       if (!signedIn && on) toast("Signed in. Your lists are saved to your Google Drive.");
+    }, function (err) {
+      toast(err && err.message ? err.message : "Couldn't sign in.");
+    });
+  }
+
+  // Have it / Want it buttons on a scan result (c is a scan-index car).
+  function scanOwnHtml(c) {
+    if (!L) return "";
+    var have = L.has("collection", c.id), want = L.has("wishlist", c.id);
+    return '<button type="button" class="scanown own" data-list="collection" aria-pressed="' + have + '">' +
+             (have ? "✓ " : "") + "Have it</button>" +
+           '<button type="button" class="scanown want" data-list="wishlist" aria-pressed="' + want + '">' +
+             (want ? "♥" : "♡") + " Want it</button>";
+  }
+
+  function updateScanOwn() {
+    if (!SC.open) return;
+    var acts = $scanList.querySelectorAll(".scanact");
+    for (var i = 0; i < acts.length; i++) {
+      var m = SC.matches[parseInt(acts[i].getAttribute("data-i"), 10)];
+      if (m) acts[i].innerHTML = scanOwnHtml(m.car);
+    }
+  }
+
+  // Called from the button's click, so lists.js can open Google's popup.
+  function toggleScanOwn(list, c) {
+    if (!L || (list !== "collection" && list !== "wishlist")) return;
+    var signedIn = !!L.user();
+    L.toggle(list, { id: c.id, y: c.year, a: c.assort, t: c.title }).then(function (on) {
+      if (on) toast(list === "collection" ? "Added to your collection." : "Added to your wishlist.");
+      else if (signedIn) toast(list === "collection" ? "Removed from your collection." : "Removed from your wishlist.");
     }, function (err) {
       toast(err && err.message ? err.message : "Couldn't sign in.");
     });
@@ -3513,6 +3565,7 @@
     if (!what || !what.lists) return;
     renderOwnRow();
     updateGridMarks();
+    updateScanOwn();
     if (ownFilter) render();
     var oc = ownCounts();
     if (CARS.length && oc.owned + "," + oc.wanted !== OWN_SIG) renderFilters();

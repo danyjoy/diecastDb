@@ -105,6 +105,10 @@ its detail page, so that building my lists is quick.
 5. IF a save fails THEN the app SHALL keep the change in the local cache,
    show that it isn't synced yet, and retry on the next change, the next app
    start, or a manual "Sync now".
+6. WHEN the card scanner shows its matches in browser mode THEN each match
+   SHALL have **Have it** and **Want it** buttons that save the car without
+   leaving the scanner and confirm with a short message. Tapping the rest of
+   the row SHALL still open the car's detail.
 
 ### Requirement 4: See which cars I own or want while browsing
 
