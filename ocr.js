@@ -4,14 +4,16 @@
  *   detection  (DB model)   → finds text lines in the image
  *   recognition (CRNN/SVTR) → reads each line (CTC decoding)
  *
- * No OpenCV: boxes are axis-aligned connected components of the detection
- * map, which is enough for card text held roughly level.
+ * No OpenCV: boxes are connected components of the detection map, turned to
+ * follow each line's angle, which is enough for card text held roughly level.
  *
  * Usage:
  *   var engine = await PaddleOCRLite.load({ ort, detUrl, recUrl, dictUrl,
  *     det: { thresh, boxThresh, unclip, maxSide },   // optional
  *     charset: /^[ -~]$/ });                        // optional output filter
- *   var lines = await engine.recognize(canvas); // [{ text, score, box }]
+ *   var lines = await engine.recognize(canvas, onProgress); // [{ text, score, box }]
+ *   // PaddleOCRLite.fetchBuf(url, onBytes, sizeHint) downloads with progress;
+ *   // pass the buffers as detBuf/recBuf instead of detUrl/recUrl.
  *
  * Models (Apache-2.0, PaddleOCR via RapidOCR's ONNX conversions) live in
  * ./models/. See models/README.md.
@@ -30,10 +32,38 @@
   var REC_H = 48;   // recognition input height (PP-OCRv3 to v6)
   var REC_MAX_W = 1280;
 
-  function fetchBuf(url) {
+  // Fetch a file as an ArrayBuffer, reporting progress as it streams in:
+  // onBytes(received, total, done). `total` comes from Content-Length when the
+  // response isn't compressed, otherwise from `sizeHint` (the uncompressed
+  // size, since the stream yields decompressed bytes).
+  function fetchBuf(url, onBytes, sizeHint) {
     return fetch(url).then(function (r) {
       if (!r.ok) throw new Error("HTTP " + r.status + " for " + url);
-      return r.arrayBuffer();
+      var enc = r.headers.get("content-encoding");
+      var len = (!enc || enc === "identity") ? parseInt(r.headers.get("content-length"), 10) : NaN;
+      var total = len > 0 ? len : (sizeHint || 0);
+      if (!onBytes || !r.body || !r.body.getReader) {
+        return r.arrayBuffer().then(function (b) {
+          if (onBytes) onBytes(b.byteLength, b.byteLength, true);
+          return b;
+        });
+      }
+      var reader = r.body.getReader(), chunks = [], got = 0;
+      function pump() {
+        return reader.read().then(function (res) {
+          if (res.done) {
+            var out = new Uint8Array(got), o = 0;
+            for (var i = 0; i < chunks.length; i++) { out.set(chunks[i], o); o += chunks[i].length; }
+            onBytes(got, got, true);
+            return out.buffer;
+          }
+          chunks.push(res.value);
+          got += res.value.length;
+          onBytes(got, Math.max(total, got), false);
+          return pump();
+        });
+      }
+      return pump();
     });
   }
 
@@ -74,7 +104,6 @@
     });
   }
 
-  // Connected components (4-neighbour) of the thresholded probability map.
   // Connected components (4-neighbour) of the thresholded probability map.
   // Each component becomes a rotated box: its angle is the principal axis of
   // the component's pixels, so slightly tilted lines are straightened before
@@ -176,12 +205,18 @@
     return { text: text.trim(), score: n ? sum / n : 0 };
   }
 
+  // Models can be given as URLs (detUrl/recUrl) or already-downloaded
+  // buffers (detBuf/recBuf), so the caller can show download progress.
   function load(opts) {
     var ort = opts.ort;
     var so = { executionProviders: ["wasm"], graphOptimizationLevel: "all" };
+    function model(buf, url) {
+      return (buf ? Promise.resolve(buf) : fetchBuf(url))
+        .then(function (b) { return ort.InferenceSession.create(b, so); });
+    }
     return Promise.all([
-      fetchBuf(opts.detUrl).then(function (b) { return ort.InferenceSession.create(b, so); }),
-      fetchBuf(opts.recUrl).then(function (b) { return ort.InferenceSession.create(b, so); }),
+      model(opts.detBuf, opts.detUrl),
+      model(opts.recBuf, opts.recUrl),
       fetch(opts.dictUrl).then(function (r) {
         if (!r.ok) throw new Error("HTTP " + r.status + " for " + opts.dictUrl);
         return r.text();
@@ -200,23 +235,33 @@
         for (var ci = 0; ci < chars.length; ci++) if (opts.charset.test(chars[ci])) allowed.push(ci + 1);
       }
       var engine = { ort: ort, det: res[0], rec: res[1], chars: chars, detCfg: detCfg, allowed: allowed };
-      engine.recognize = function (src) {
+      // onProgress(fraction 0..1): detection counts as the first 30%, then
+      // each text line read adds its share of the rest.
+      engine.recognize = function (src, onProgress) {
+        function report(f) { if (onProgress) { try { onProgress(f); } catch (e) {} } }
+        report(0);
         return detect(engine, src).then(function (boxes) {
           var out = [];
           // Skip vertical strips (side-printed text) and run lines one by one
           // to keep peak memory low on phones.
-          var chain = Promise.resolve();
-          boxes.forEach(function (b) {
-            if (Math.abs(b.angle) > Math.PI / 4 || b.h > b.w * 1.5) return;
-            chain = chain.then(function () { return recognizeBox(engine, src, b); })
-              .then(function (r) { if (r.text) out.push({ text: r.text, score: r.score, box: b }); });
+          var todo = boxes.filter(function (b) {
+            return !(Math.abs(b.angle) > Math.PI / 4 || b.h > b.w * 1.5);
           });
-          return chain.then(function () { return out; });
+          report(0.3);
+          var chain = Promise.resolve();
+          todo.forEach(function (b, i) {
+            chain = chain.then(function () { return recognizeBox(engine, src, b); })
+              .then(function (r) {
+                if (r.text) out.push({ text: r.text, score: r.score, box: b });
+                report(0.3 + 0.7 * (i + 1) / todo.length);
+              });
+          });
+          return chain.then(function () { report(1); return out; });
         });
       };
       return engine;
     });
   }
 
-  root.PaddleOCRLite = { load: load };
+  root.PaddleOCRLite = { load: load, fetchBuf: fetchBuf };
 })(window);

@@ -510,6 +510,17 @@
     color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .3px;
     background: var(--accent); padding: 3px 8px; border-radius: 6px;
   }
+  /* Progress bar (text reader download / reading a card). Sits at the top of
+     the camera area so it never covers the name zone. */
+  .scanprog {
+    position: absolute; left: 12px; right: 12px; top: 12px; z-index: 2;
+    background: rgba(0,0,0,.72); border-radius: 12px; padding: 9px 12px 8px;
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  .scanprog[hidden] { display: none; }
+  .scanprog .track { height: 6px; border-radius: 999px; background: rgba(255,255,255,.18); overflow: hidden; }
+  .scanprog .bar { height: 100%; width: 0; border-radius: 999px; background: var(--accent); transition: width .2s ease; }
+  .scanprog .lbl { margin-top: 6px; color: #fff; font-size: 12px; font-weight: 600; }
   .scanstatus {
     position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
     max-width: calc(100% - 24px); text-align: center;
@@ -690,6 +701,10 @@
       <img id="scanSnap" class="snap" alt="" />
       <div class="scanframe"><div class="scanzone"></div></div>
       <div id="scanStatus" class="scanstatus"></div>
+      <div id="scanProg" class="scanprog" role="progressbar" aria-live="polite" hidden>
+        <div class="track"><div id="scanProgBar" class="bar"></div></div>
+        <div id="scanProgLabel" class="lbl"></div>
+      </div>
     </div>
     <div id="scanRes" class="scanres">
       <label for="scanText">Text read from the card (edit to refine the match)</label>
@@ -2019,6 +2034,13 @@
     dictUrl: "./models/ppocrv6_dict.txt",
     charset: /^[ -~\u00C0-\u017F™®]$/
   };
+  // Files downloaded with a progress bar, and their uncompressed sizes (used
+  // as the total when the server compresses and omits Content-Length).
+  var OCR_FILES = [
+    { key: "wasm", url: ORT_BASE + "ort-wasm-simd-threaded.wasm", size: 14848852 },
+    { key: "det", url: OCR_MODELS.detUrl, size: 2423224 },
+    { key: "rec", url: OCR_MODELS.recUrl, size: 21159378 }
+  ];
   var OCR_MIN_SCORE = 0.65; // drop lines the model is unsure of (reflections, art)
   function scanImg(id) {
     var e = encodeURIComponent(id);
@@ -2040,13 +2062,37 @@
   var $scanUpload = document.getElementById("scanUpload");
   var $scanRetake = document.getElementById("scanRetake");
   var $scanFile = document.getElementById("scanFile");
+  var $scanProg = document.getElementById("scanProg");
+  var $scanProgBar = document.getElementById("scanProgBar");
+  var $scanProgLabel = document.getElementById("scanProgLabel");
 
   // run: bumped on every new action so late async results from an older
   // capture / close are ignored.
+  // dl: download progress of the text reader, null when not downloading.
+  // read: reading progress (0..1) during a scan, null otherwise.
   var SC = { open: false, run: 0, stream: null, engine: null, engineP: null,
-             index: null, indexP: null, matches: [] };
-  function setMode(m) { $scanner.className = "scanner open " + m; }
+             index: null, indexP: null, matches: [], dl: null, read: null };
+  function setMode(m) { $scanner.className = "scanner open " + m; renderProgress(); }
   function setStatus(t) { $scanStatus.textContent = t || ""; }
+
+  // One progress bar for both: the download (shown whenever it's running,
+  // even while aiming) takes priority, then reading progress during a scan.
+  function renderProgress() {
+    var label = "", frac = null;
+    if (SC.dl) {
+      var mb = function (b) { return (b / 1048576).toFixed(1); };
+      frac = SC.dl.total ? SC.dl.loaded / SC.dl.total : 0;
+      label = "Downloading text reader (first time only) · " + mb(SC.dl.loaded) + " / " + mb(SC.dl.total) + " MB";
+    } else if (SC.read != null && $scanner.classList.contains("busy")) {
+      frac = SC.read;
+      label = "Reading card…";
+    }
+    if (frac == null) { $scanProg.hidden = true; return; }
+    frac = Math.max(0, Math.min(1, frac));
+    $scanProg.hidden = false;
+    $scanProgBar.style.width = (frac * 100).toFixed(1) + "%";
+    $scanProgLabel.textContent = label + " " + Math.round(frac * 100) + "%";
+  }
 
   function loadScript(src, sri) {
     return new Promise(function (resolve, reject) {
@@ -2068,16 +2114,41 @@
       .then(function () { return window.PaddleOCRLite ? null : loadScript("./ocr.js"); })
       .then(function () {
         if (!window.ort || !window.PaddleOCRLite) throw new Error("text reader missing");
-        window.ort.env.wasm.wasmPaths = ORT_BASE;
+        // Download the runtime binary and both models ourselves so the bar can
+        // show real progress (cached files finish almost instantly).
+        var got = {}, total = 0;
+        OCR_FILES.forEach(function (f) { got[f.key] = { loaded: 0, total: f.size }; total += f.size; });
+        SC.dl = { loaded: 0, total: total };
+        renderProgress();
+        function update() {
+          var l = 0, t = 0;
+          for (var k in got) { l += got[k].loaded; t += got[k].total; }
+          SC.dl = { loaded: l, total: t };
+          renderProgress();
+        }
+        return Promise.all(OCR_FILES.map(function (f) {
+          return window.PaddleOCRLite.fetchBuf(f.url, function (loaded, tot) {
+            got[f.key] = { loaded: loaded, total: tot || f.size };
+            update();
+          }, f.size);
+        }));
+      })
+      .then(function (bufs) {
+        var ort = window.ort;
+        ort.env.wasm.wasmPaths = ORT_BASE;   // the small .mjs loader still comes from here
+        ort.env.wasm.wasmBinary = bufs[0];  // already downloaded above
         // Multi-threading needs cross-origin isolation, which GitHub Pages lacks.
-        window.ort.env.wasm.numThreads = 1;
+        ort.env.wasm.numThreads = 1;
         return window.PaddleOCRLite.load({
-          ort: window.ort, detUrl: OCR_MODELS.detUrl, recUrl: OCR_MODELS.recUrl,
+          ort: ort, detBuf: bufs[1], recBuf: bufs[2],
           dictUrl: OCR_MODELS.dictUrl, charset: OCR_MODELS.charset
         });
       })
-      .then(function (e) { SC.engine = e; return e; });
-    p.catch(function () { if (SC.engineP === p) SC.engineP = null; });
+      .then(function (e) { SC.engine = e; SC.dl = null; renderProgress(); return e; });
+    p.catch(function () {
+      if (SC.engineP === p) SC.engineP = null;
+      SC.dl = null; renderProgress();
+    });
     return p;
   }
 
@@ -2655,8 +2726,10 @@
     stopCamera();
     SC.carColors = preview && carArea ? measureCarColors(preview, carArea) : null;
     try { $scanSnap.src = (preview || regions[0]).toDataURL("image/jpeg", 0.85); } catch (e) {}
+    // The progress bar carries the status while reading.
+    SC.read = 0;
+    setStatus("");
     setMode("busy");
-    setStatus(SC.engine ? "Reading card…" : "Loading text reader (first time only)…");
     // text: lines the model is sure of. raw: every line, used if nothing
     // passed (better something to edit than an empty box).
     var text = "", raw = "";
@@ -2667,8 +2740,16 @@
         if (run !== SC.run) return null;
         if (text.trim() && good()) return text;
         if (i >= regions.length) return text.trim() ? text : raw;
-        setStatus("Reading card… " + Math.round(100 * i / regions.length) + "%");
-        return engine.recognize(regions[i++]).then(function (lines) {
+        // The first region (the name zone / bottom strip) usually settles it,
+        // so it gets most of the bar; any fallback regions share the rest.
+        var n = regions.length, k = i;
+        var start = k === 0 ? 0 : (n > 1 ? 0.8 + 0.2 * (k - 1) / (n - 1) : 0);
+        var span = k === 0 ? (n > 1 ? 0.8 : 1) : 0.2 / (n - 1);
+        SC.read = start; renderProgress();
+        return engine.recognize(regions[i++], function (f) {
+          if (run !== SC.run) return;
+          SC.read = start + span * f; renderProgress();
+        }).then(function (lines) {
           if (run !== SC.run) return;
           lines.forEach(function (l) {
             if (isNoiseLine(l.text)) return; // "MATTEL", "3+", logo, warnings
@@ -2689,6 +2770,7 @@
 
   // ---- Results ----
   function showScanResults(text, err) {
+    SC.read = null;
     setMode("review");
     setStatus("");
     var cols = SC.carColors;
