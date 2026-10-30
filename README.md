@@ -1,105 +1,68 @@
-# diecastDb — Hot Wheels catalog browser
+# diecastDb: Hot Wheels catalog browser
 
-A static Telegram Mini App (Web App) that browses scraped Hot Wheels catalogs:
-photos, search, series filters and Treasure Hunt filters. Pick an **assortment**
-(Mainline, Boulevard, …) from the menu and a **year** from the header dropdown;
-tap a car for a detail card with every spec and image.
+A static web app, also used as a Telegram Mini App, for browsing Hot Wheels
+castings: photos, search, series filters, Treasure Hunt / Chase highlights,
+and a camera scanner that identifies a car from its blister card.
 
-Served over HTTPS by **GitHub Pages**:
+Live site (GitHub Pages): **https://danyjoy.github.io/diecastDb/**
+
+## What it does
+
+- **Browse** three collections: Mainline (1968–2027), Premium (2012–2027) and
+  Silver Series (2009, 2012–2027), about 17,800 cars in total. Pick a
+  collection and a year, then search or filter by series, Treasure Hunt,
+  Super Treasure Hunt, Chase or Soft Chase.
+- **Car details**: every spec in the catalog, a photo gallery with a
+  full-screen pinch-zoom viewer, image download and copy-name.
+- **Scan a card**: point the phone at a blister card. The app reads the car
+  name on the device, matches it against every year and collection, and ranks
+  the colour variants by the car's colour in the photo. Nothing is uploaded.
+- **Weekly data refresh**: a GitHub Action re-scrapes the current and next
+  year every Monday and commits any changes.
+
+## Documentation
+
+| Topic | File |
+|---|---|
+| Browsing features and Telegram integration | [docs/features.md](docs/features.md) |
+| Card scanner: how to use it and how it works | [docs/card-scanner.md](docs/card-scanner.md) |
+| Data files, manifest and car record format | [docs/data.md](docs/data.md) |
+| Weekly catalog updates (GitHub Action, scraper) | [docs/catalog-updates.md](docs/catalog-updates.md) |
+| Running locally, testing on a phone, code layout | [docs/development.md](docs/development.md) |
+| OCR model files and their sources | [models/README.md](models/README.md) |
+
+## Repository layout
 
 ```
-https://danyjoy.github.io/diecastDb/
-```
-
-## Contents
-
-```
-index.html          # the Mini App (vanilla HTML/CSS/JS, no build step)
-.nojekyll           # serve files as-is (no Jekyll)
+index.html                  the whole app (vanilla HTML/CSS/JS, no build step)
+ocr.js                      on-device text reader used by the scanner
+models/                     OCR models (ONNX) + character list
 data/
-  index.json        # manifest: assortments, the years each has, and the default
-  <year>/<assortment>.json   # one catalog file per assortment, per year
+  index.json                manifest: collections and the years each has
+  <year>/<collection>.json  one catalog file per collection per year
+  scan-index.json           compact list of every car, used by the scanner
+scripts/
+  update-catalog.js         weekly scraper (run by the GitHub Action)
+  build-scan-index.js       rebuilds data/scan-index.json
+.github/workflows/
+  update-catalog.yml        weekly schedule for the scraper
+logo.svg, logo-header.svg, og-image.png, wheel-loader.json   assets
+.nojekyll                   serve files as-is on GitHub Pages
 ```
 
-Example:
-
-```
-data/2026/mainline.json
-data/2026/boulevard.json
-data/2012/boulevard.json
-```
-
-The app reads `data/index.json` first to learn what assortments exist and which
-years each one has, then loads `data/<year>/<assortment>.json` for the current
-selection. It opens on the default assortment and the **current calendar year**
-(or that assortment's newest year if it has no current-year data).
-
-## Manifest (`data/index.json`)
-
-```json
-{
-  "default": { "assortment": "mainline" },
-  "file_pattern": "{year}/{assortment}.json",
-  "assortments": [
-    { "key": "mainline", "label": "Mainline", "group_by": "series_name", "years": ["2026"] },
-    { "key": "premium",  "label": "Premium",  "group_by": "assortment",  "years": ["2027", "2026", "2025", "2024", "2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014", "2013", "2012"] }
-  ]
-}
-```
-
-- `default.assortment` — which assortment opens first.
-- `assortments[].key` — internal id; also the file name (`<key>.json`).
-- `assortments[].label` — the menu/header text.
-- `assortments[].group_by` — which car field the **Series** filter groups by.
-  Mainline uses `series_name`; Premium uses `assortment` (its sub-line — Car
-  Culture, Boulevard, Pop Culture, …). Defaults to `series_name`.
-- `assortments[].years` — the years this assortment has files for (any order;
-  the app sorts newest-first). The current year is used as the default when
-  present.
-- `file_pattern` — optional; defaults to `{year}/{assortment}.json`.
-
-> Boulevard is a sub-line of Premium, so it isn't a separate assortment — it
-> appears as a Series option inside Premium.
-
-## Adding a new collection (year or assortment)
-
-1. Scrape it in the tracker project (writes `hotwheelsDB/<year>/<assortment>.json`).
-2. Copy the file(s) into `data/<year>/<assortment>.json` here.
-3. Update `data/index.json`: add the assortment (or add the new year to an
-   existing assortment's `years`).
-4. Commit and push:
+## Quick start
 
 ```bash
-git add data && git commit -m "Add boulevard catalog" && git push
+python3 -m http.server 8000
+# open http://localhost:8000
 ```
 
-GitHub Pages redeploys automatically within a minute or two. No code change
-needed — the assortment menu and year dropdown build themselves from the
-manifest.
-
-## Card scanner
-
-The camera button in the search bar opens a scanner. Point the phone at a
-blister card (or pick a photo) and the app reads the card text on the device
-with [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) mobile models running
-on [ONNX Runtime Web](https://onnxruntime.ai/), then fuzzy-matches it against
-every car in every year and assortment. Tap a match to open it. Nothing is
-uploaded; the first scan downloads ~27 MB (models + runtime), cached after that.
-
-- `ocr.js` — the text detection + recognition pipeline.
-- `models/` — the ONNX models and character list (see `models/README.md`).
-
-Matching uses `data/scan-index.json`, a compact cross-year list of all cars
-(~320 KB gzipped, fetched only when the scanner opens). `scripts/update-catalog.js`
-rebuilds it automatically; after adding or editing data by hand, run:
-
-```bash
-node scripts/build-scan-index.js
-```
+There is no build step: pushing to `main` deploys to GitHub Pages. See
+[docs/development.md](docs/development.md) for testing the scanner on a phone.
 
 ## Data source
 
-Catalog data is the publicly listed Hot Wheels info from
+Catalog data is the publicly listed Hot Wheels information from
 [findmyhw.com](https://findmyhw.com); images are hotlinked from there.
 
 ## Trademarks & disclaimer
