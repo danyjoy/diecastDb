@@ -106,7 +106,7 @@ folder:
   "version": 1,
   "updated_at": "2026-10-30T12:00:00.000Z",
   "collection": {
-    "JBB06_1": { "y": "2025", "a": "mainline", "t": "'15 LAND ROVER DEFENDER DOUBLE CAB", "at": 1793361600000 }
+    "JBB06_1": { "y": "2025", "a": "mainline", "t": "'15 LAND ROVER DEFENDER DOUBLE CAB", "at": 1793361600000, "q": 2 }
   },
   "wishlist": {
     "HTX12_2": { "y": "2026", "a": "premium", "t": "NISSAN SKYLINE GT-R", "at": 1793361600000 }
@@ -122,7 +122,10 @@ folder:
   "open this car" needs to call `loadCollection(a, y)`. `t` (title) lets the
   My cars screen show a name even before the scan index loads, or after a car
   disappears from the catalog.
-- `at` is the time the car was added (ms). `removed` holds tombstones (time
+- `q` (collection only) is the number of copies owned, 1–999. A missing `q`
+  means 1.
+- `at` is the time of the last change to that car (ms): added, or its count
+  changed. `removed` holds tombstones (time
   of removal), so that merging two devices doesn't bring back a car that was
   deleted. Tombstones older than 90 days are dropped on save.
 - Size: about 90 bytes per entry, so 5,000 cars come to about 450 KB.

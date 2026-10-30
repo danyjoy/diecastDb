@@ -13,9 +13,9 @@ runs on the device; no photo is uploaded.
 3. Press the shutter. Or tap **Photo** to take or pick a picture instead.
 4. Tap a result to open that car. The app loads its collection and year if
    needed.
-5. On the website, each result also has **Have it** and **Want it**
-   buttons. They add the car to your collection or wishlist without leaving
-   the scanner (signing in with Google first if needed). See
+5. On the website, each result also has **+** (add to your collection, then
+   **− n +** for the number of copies) and a **bookmark** (wishlist). They
+   save the car without leaving the scanner (signing in with Google first if needed). See
    [my-collection.md](my-collection.md). The Telegram Mini App doesn't show
    them.
 

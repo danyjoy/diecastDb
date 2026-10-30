@@ -80,6 +80,16 @@
   Google's script is preloaded when the scanner opens.
   - _Requirements: 3.6_
 
+- [x] 6.7 Replace Have it / Want it and the grid markers with one shared
+  control (`ctlHtml` / `ctlBox` / `ownAct`): + that becomes − n + (copies,
+  stored as `q`, `DiecastLists.step`) and a bookmark for the wishlist, on grid
+  cards, the detail view, scanner matches and My cars rows.
+  - _Requirements: 3.1, 3.3, 4.1, 4.2_
+- [x] 6.8 Fix: closing a car opened from My cars with the in-page Back button
+  also closed My cars. `closeDetail` pops its own history entry, and the
+  resulting popstate now gets ignored (`SELF_POP`).
+  - _Requirements: 5.5_
+
 - [ ] 8. Final manual test pass
   - Run the checks in the design's Testing section on desktop Chrome and
     Safari, a phone over the HTTPS tunnel, and the Telegram Mini App (after

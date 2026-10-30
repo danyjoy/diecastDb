@@ -18,7 +18,7 @@ Live site (GitHub Pages): **https://danyjoy.github.io/diecastDb/**
   name on the device, matches it against every year and collection, and ranks
   the colour variants by the car's colour in the photo. Nothing is uploaded.
 - **My collection & wishlist** (website only): sign in with Google and mark
-  cars as *Have it* or *Want it*. The lists are saved in your own Google
+  cars as owned (with the number of copies) or wanted. The lists are saved in your own Google
   Drive (a hidden app folder), not on any server of ours. The Telegram Mini
   App stays browse-only.
 - **Weekly data refresh**: a GitHub Action re-scrapes the current and next

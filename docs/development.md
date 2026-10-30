@@ -60,7 +60,8 @@ is loaded only when the scanner opens. See [card-scanner.md](card-scanner.md).
 `lists.js` is the collection & wishlist sync (Google sign-in + Drive app data
 folder), exposed as `window.DiecastLists`. `index.html` loads it at startup
 only outside Telegram (`LISTS_ON`). The UI for it (account button and sheet,
-Have it / Want it, grid markers, Owned / Wanted pills, My cars screen) is the
++ / − n + and bookmark controls on cards, the detail view, scan results and
+My cars rows, Owned / Wanted pills, My cars screen) is the
 "My collection & wishlist" part of the script, just before the boot code. See
 [my-collection.md](my-collection.md).
 

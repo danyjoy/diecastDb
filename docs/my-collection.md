@@ -1,7 +1,7 @@
 # My collection & wishlist
 
 In a normal web browser, users can sign in with Google and mark cars as
-**Have it** (collection) or **Want it** (wishlist). There is no server: the
+owned (collection, with the number of copies) or wanted (wishlist). There is no server: the
 lists are saved in the user's own Google Drive, in the hidden app data folder
 (`appDataFolder`). Only this app can open that folder, and the app can't see
 any other Drive file.
@@ -19,14 +19,16 @@ The spec is in `.kiro/specs/my-collection-sync/`.
 - **Account sheet**: Sign in with Google; once signed in, the sync status,
   **My cars**, **Sync now**, **Export (JSON)**, **Delete my data** and
   **Sign out**. Links to [privacy.html](../privacy.html).
-- **Have it / Want it** buttons in the car detail view. Tapping one while
-  signed out starts sign-in and then adds the car. *Have it* takes the car
-  off the wishlist.
-- **Have it / Want it on scan results**: every match in the card scanner has
-  the same two buttons, so a scanned car can be saved without leaving the
-  scanner. Tapping the rest of the row still opens the car's detail.
-- **Grid markers**: a green ✓ (owned) or pink ♥ (wanted) at the bottom-left
-  of the photo.
+- **Add / wishlist controls** on every grid card (top-right of the photo),
+  in the car detail view, on card scanner matches and on My cars rows:
+  - **+** adds the car to the collection. It then turns into **− n +**, the
+    number of copies owned (up to 999). **−** at 1 removes the car.
+  - The **bookmark** adds the car to the wishlist or removes it (filled pink
+    when on the wishlist). A short message confirms it.
+  - Adding a wishlisted car to the collection takes it off the wishlist.
+  - Tapping a control while signed out starts sign-in, then adds the car.
+  - Tapping a control never opens the car. Tapping the rest of the card or
+    row does.
 - **Owned / Wanted filters** in the filter row, for the loaded collection and
   year. They combine with the other filters.
 - **My cars** screen: Collection and Wishlist tabs across every year and
@@ -42,22 +44,23 @@ injects it at startup only when `LISTS_ON` (`!inTelegram`) is true.
   `https://www.googleapis.com/auth/drive.appdata` only. Access tokens last
   about an hour. Without a backend there are no refresh tokens, so the token
   is kept in memory and `sessionStorage` (never `localStorage`). When it has
-  expired, the next tap on Have it / Want it / Sync now gets a new one through
+  expired, the next tap on +, −, the bookmark or Sync now gets a new one through
   a popup that closes on its own.
 - **Storage**: one file, `diecastdb-lists.json`, in `appDataFolder`:
 
   ```json
   {
     "app": "diecastDb", "version": 1, "updated_at": "2026-10-30T12:00:00.000Z",
-    "collection": { "JBB06_1": { "y": "2025", "a": "mainline", "t": "'15 LAND ROVER DEFENDER DOUBLE CAB", "at": 1793361600000 } },
+    "collection": { "JBB06_1": { "y": "2025", "a": "mainline", "t": "'15 LAND ROVER DEFENDER DOUBLE CAB", "at": 1793361600000, "q": 2 } },
     "wishlist": {},
     "removed": { "collection": {}, "wishlist": {} }
   }
   ```
 
   `y` and `a` are the year and collection key needed to open the car. `t` is
-  the title, so My cars can show a name before the scan index loads. `at` is
-  the time the car was added. `removed` holds removal times (kept 90 days), so
+  the title, so My cars can show a name before the scan index loads. `q` is
+  the number of copies owned (collection only; missing means 1). `at` is the
+  time of the last change to that car. `removed` holds removal times (kept 90 days), so
   a car removed on one device isn't brought back by another.
 - **Local copy** in `localStorage`: `dl.lists` (the document), `dl.dirty`
   (changes not yet saved) and `dl.hint` (name and email). Cleared on sign-out.
@@ -109,17 +112,21 @@ answers `origin_mismatch`.
   to open the site in Chrome or Safari.
 - On a new visit (new tab), the lists show from the local copy straight away,
   but fetching changes from other devices needs one tap (Sync now, or any
-  Have it / Want it), because getting a new token requires a user gesture.
+  +, − or bookmark tap), because getting a new token requires a user gesture.
 - Two devices saving in the same second can still overwrite each other's
   last change, because Drive has no conditional writes for this upload type.
   The merge keeps that window small.
 
 ## Manual test checklist
 
-- Signed out: the account sheet shows Sign in with Google. Have it on a car
-  signs in and then marks it.
-- Scanner: scan or type a car name, tap Have it / Want it on a result. A
-  toast confirms, the scanner stays open, and the car shows in My cars.
+- Signed out: the account sheet shows Sign in with Google. + on a car signs
+  in and then adds it.
+- Grid: + turns into − 1 +, + again shows 2, − back to 0 shows + again. The
+  bookmark fills pink. Neither opens the car.
+- Scanner: scan or type a car name, tap + or the bookmark on a result. The
+  scanner stays open, and the car shows in My cars.
+- My cars → open a car → Back (in-page button and phone back gesture): you
+  return to My cars, not the main grid.
 - Reload within the hour: no popup, status *Saved to your Google Drive*.
 - Two browser profiles with the same account: add on A, switch to B (tab
   focus) and the car appears. Remove on B, add another car on A, and the

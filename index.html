@@ -661,37 +661,42 @@
   .acct .foot { margin-top: 12px; font-size: 12px; color: var(--hint); }
   .acct .foot a { color: var(--accent); }
 
-  .ownrow { display: flex; gap: 8px; margin: 12px 0 6px; }
-  .ownbtn {
-    flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 10px 12px; border-radius: 12px; cursor: pointer;
-    border: 1px solid var(--border); background: var(--card); color: var(--text);
-    font-size: 14px; font-weight: 700;
-  }
-  .ownbtn:active { opacity: .7; }
-  .ownbtn.own[aria-pressed="true"] { background: var(--own); border-color: var(--own); color: #fff; }
-  .ownbtn.want[aria-pressed="true"] { background: var(--want); border-color: var(--want); color: #fff; }
-
-  /* Have it / Want it on scanner results. */
-  .scanact { display: flex; gap: 6px; margin-top: 7px; }
-  .scanown {
-    padding: 5px 11px; border-radius: 999px; cursor: pointer;
-    border: 1px solid var(--border); background: var(--card2); color: var(--text);
-    font-size: 12px; font-weight: 700; white-space: nowrap;
-  }
-  .scanown:active { opacity: .7; }
-  .scanown.own[aria-pressed="true"] { background: var(--own); border-color: var(--own); color: #fff; }
-  .scanown.want[aria-pressed="true"] { background: var(--want); border-color: var(--want); color: #fff; }
-
-  /* Owned / wanted marker on grid cards: bottom-left, clear of the rarity badge. */
-  .mark {
-    position: absolute; left: 7px; bottom: 7px; z-index: 1;
-    width: 22px; height: 22px; border-radius: 50%; color: #fff;
+  /* Collection controls: "+" that becomes "− n +" (copies owned), and a
+     bookmark for the wishlist. Same markup on grid cards, scan results and
+     the detail view; the container class sets the size and layout. */
+  .ownctl button { font: inherit; cursor: pointer; -webkit-user-select: none; user-select: none; }
+  .qadd, .qty, .wish {
+    height: 32px; border-radius: 9px; border: 1.5px solid var(--accent);
+    background: #fff; color: var(--accent);
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 800; box-shadow: 0 1px 4px rgba(0,0,0,.35);
+    font-weight: 800; box-shadow: 0 1px 4px rgba(0,0,0,.2);
   }
-  .mark.own { background: var(--own); }
-  .mark.want { background: var(--want); }
+  .ownctl .qadd { min-width: 32px; padding: 0 6px; gap: 6px; font-weight: 800; }
+  .qty { padding: 0; overflow: hidden; }
+  .ownctl .qty button { width: 30px; height: 100%; padding: 0; border: 0; background: transparent;
+    color: inherit; display: inline-flex; align-items: center; justify-content: center; }
+  .ownctl svg.pm { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.8;
+    stroke-linecap: round; flex: 0 0 auto; }
+  .qty .n { min-width: 16px; text-align: center; font-size: 16px; font-weight: 800; }
+  .wish { width: 32px; padding: 0; gap: 6px; }
+  .wish svg { width: 17px; height: 17px; flex: 0 0 auto; fill: none; stroke: currentColor;
+    stroke-width: 2.2; stroke-linejoin: round; }
+  .wish.on { color: var(--want); border-color: var(--want); }
+  .wish.on svg { fill: currentColor; }
+  .qadd:active, .qty button:active, .wish:active { opacity: .6; }
+
+  /* Grid card: top-right of the photo, clear of the rarity badge (top-left). */
+  .ownctl.tile { position: absolute; top: 7px; right: 7px; z-index: 2;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  /* Scan results and My cars rows. */
+  .ownctl.row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  /* Detail view: full-width row with labels. */
+  .ownctl.full { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
+  .ownctl.full .qadd, .ownctl.full .qty, .ownctl.full .wish { height: 42px; border-radius: 12px; }
+  .ownctl.full .qadd { flex: 1; font-size: 15px; }
+  .ownctl.full .qty button { width: 40px; }
+  .ownctl.full .qlbl { flex: 1; font-weight: 700; color: var(--text); }
+  .ownctl.full .wish { width: auto; padding: 0 14px; font-size: 14px; }
   .chip.own.active { background: var(--own); border-color: var(--own); color: #fff; }
   .chip.want.active { background: var(--want); border-color: var(--want); color: #fff; }
 
@@ -1242,7 +1247,7 @@
         '<div class="card' + cls + '" data-id="' + esc(c.id) + '">' +
           '<div class="thumb' + (thumb ? " loading" : "") + '">' + badge + softBadge +
             (thumb ? '<img loading="lazy" src="' + esc(thumb) + '" alt="">' : NOIMG_HTML) +
-            markHtml(c.id) +
+            ctlBox(c.id, "tile") +
           '</div>' +
           '<div class="cardbody">' +
             '<div class="title">' + esc(c.title) + '</div>' +
@@ -1860,10 +1865,9 @@
       (rc ? '<div class="rarity ' + rc + '">' + esc(car.rarity) + "</div>" : "") +
       (isSoftChase(car) ? '<div class="rarity th">Soft Chase</div>' : "") +
       (isMetalBase(car) && !isSoftChase(car) ? '<div class="rarity meta">Metal base</div>' : "") +
-      (LISTS_ON ? '<div id="ownRow" class="ownrow"></div>' : "") +
+      ctlBox(car.id, "full") +
       specs;
-    renderOwnRow();
-    if (L) L.prepare(); // so a tap on Have it / Want it can open Google's popup
+    if (L) L.prepare(); // so a tap on + or the bookmark can open Google's popup
 
     $detail.classList.add("open");
     $dscroll.scrollTop = 0;
@@ -1894,17 +1898,21 @@
       tg.BackButton.offClick(closeDetail);
     }
     if (fromPop !== true) {
-      // Remove the history entry we pushed when opening (triggers popstate,
-      // which no-ops since the overlay is already closed).
-      try { history.back(); } catch (e) {}
+      // Remove the history entry we pushed when opening. That fires popstate;
+      // when My cars is open underneath, tell the handler to ignore it, or it
+      // would close My cars too.
+      if (MC.open) SELF_POP = true;
+      try { history.back(); } catch (e) { SELF_POP = false; }
     }
   }
 
   // Back gesture / hardware back / browser back fires popstate. If the detail
   // is open, consume it to close the detail rather than leave the app.
   // The zoom viewer sits on top of the detail, so it closes first.
+  var SELF_POP = false; // set by closeDetail when it pops its own entry
   window.addEventListener("popstate", function () {
     if (Z.ignorePop) { Z.ignorePop = false; return; }
+    if (SELF_POP) { SELF_POP = false; return; }
     if (Z.open) closeZoom(true);
     else if (SC.open) closeScanner(true);
     else if ($detail.classList.contains("open")) closeDetail(true);
@@ -1949,10 +1957,10 @@
       copyText(copyBtn.getAttribute("data-copy") || "", copyBtn);
       return;
     }
-    // Have it / Want it (browser only).
-    var ownBtn = e.target.closest ? e.target.closest(".ownbtn") : null;
+    // + / − / bookmark (browser only).
+    var ownBtn = e.target.closest ? e.target.closest("[data-own]") : null;
     if (ownBtn) {
-      toggleOwn(ownBtn.getAttribute("data-list"));
+      if (currentCar) ownAct(ownBtn, { id: currentCar.id, y: curYear, a: curAssort, t: currentCar.title });
       return;
     }
     var link = e.target.closest ? e.target.closest(".v.link, .sublink") : null;
@@ -2017,6 +2025,14 @@
     var card = e.target.closest ? e.target.closest(".card") : null;
     if (!card) return;
     var id = card.getAttribute("data-id");
+    // + / − / bookmark on the photo: change the lists, don't open the car.
+    var ownBtn = e.target.closest("[data-own]");
+    if (ownBtn) {
+      for (var j = 0; j < CARS.length; j++) {
+        if (CARS[j].id === id) { ownAct(ownBtn, { id: id, y: curYear, a: curAssort, t: CARS[j].title }); break; }
+      }
+      return;
+    }
     for (var i = 0; i < CARS.length; i++) {
       if (CARS[i].id === id) { showDetail(CARS[i]); break; }
     }
@@ -3077,7 +3093,7 @@
           '<div class="bd"><div class="nm">' + esc(c.title) + "</div>" +
             '<div class="mt">' + esc(meta) + "</div>" +
             (tags ? '<div class="tags">' + tags + "</div>" : "") +
-            (L ? '<div class="scanact" data-i="' + i + '">' + scanOwnHtml(c) + "</div>" : "") +
+            ctlBox(c.id, "row") +
           "</div>" +
           '<span class="pct">' + pct + "%</span>" +
         "</div>";
@@ -3174,12 +3190,12 @@
     scanTextTimer = setTimeout(function () { renderScanMatches(); }, 250);
   });
   $scanList.addEventListener("click", function (e) {
-    // Have it / Want it on a result: save without leaving the scanner.
-    var ob = e.target.closest ? e.target.closest(".scanown") : null;
+    // + / − / bookmark on a result: save without leaving the scanner.
+    var ob = e.target.closest ? e.target.closest("[data-own]") : null;
     if (ob) {
-      var act = ob.parentNode;
-      var sm = SC.matches[parseInt(act.getAttribute("data-i"), 10)];
-      if (sm) toggleScanOwn(ob.getAttribute("data-list"), sm.car);
+      var row0 = ob.closest(".scanrow");
+      var sm = row0 && SC.matches[parseInt(row0.getAttribute("data-i"), 10)];
+      if (sm) ownAct(ob, { id: sm.car.id, y: sm.car.year, a: sm.car.assort, t: sm.car.title });
       return;
     }
     var row = e.target.closest ? e.target.closest(".scanrow") : null;
@@ -3228,11 +3244,54 @@
     toastTimer = setTimeout(function () { $toast.classList.remove("show"); }, 3500);
   }
 
-  function markHtml(id) {
-    if (!L) return "";
-    if (L.has("collection", id)) return '<span class="mark own" title="In my collection">✓</span>';
-    if (L.has("wishlist", id)) return '<span class="mark want" title="On my wishlist">♥</span>';
-    return "";
+  var BOOKMARK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 3.5h11v17l-5.5-4-5.5 4z"/></svg>';
+  var PLUS_SVG = '<svg class="pm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+  var MINUS_SVG = '<svg class="pm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>';
+
+  // Collection controls for one car: "+" (not owned) or "− n +" (copies
+  // owned), and a bookmark for the wishlist. mode: "tile" (grid photo),
+  // "row" (scan results, My cars) or "full" (detail view, with labels).
+  function ctlHtml(id, mode) {
+    var q = L.qty(id), w = L.has("wishlist", id), det = mode === "full";
+    var add = q
+      ? (det ? '<span class="qlbl">In your collection</span>' : "") +
+        '<span class="qty" role="group" aria-label="Copies in your collection">' +
+          '<button type="button" data-own="dec" aria-label="Remove one" title="Remove one">' + MINUS_SVG + "</button>" +
+          '<span class="n">' + q + "</span>" +
+          '<button type="button" data-own="inc" aria-label="Add one more" title="Add one more">' + PLUS_SVG + "</button>" +
+        "</span>"
+      : '<button type="button" class="qadd" data-own="inc" aria-label="Add to my collection" title="Add to my collection">' +
+          PLUS_SVG + (det ? "Add to collection" : "") + "</button>";
+    var wl = w ? "Remove from wishlist" : "Add to wishlist";
+    var wish = '<button type="button" class="wish' + (w ? " on" : "") + '" data-own="wish" aria-pressed="' + w +
+               '" aria-label="' + wl + '" title="' + wl + '">' + BOOKMARK_SVG +
+               (det ? (w ? "On wishlist" : "Wishlist") : "") + "</button>";
+    return add + wish;
+  }
+
+  // The container, tagged with the car id so refreshCtls() can redraw it.
+  // Empty in Telegram (lists.js isn't loaded there).
+  function ctlBox(id, mode) {
+    if (!L) return LISTS_ON && mode === "full" ? '<div class="ownctl full" data-id="' + esc(id) + '"></div>' : "";
+    return '<div class="ownctl ' + mode + '" data-id="' + esc(id) + '">' + ctlHtml(id, mode) + "</div>";
+  }
+
+  // Redraw every control on screen (grid, detail, scan results, My cars), or
+  // add them to the grid if lists.js loaded after the grid was drawn.
+  function refreshCtls() {
+    if (!L) return;
+    var boxes = document.querySelectorAll(".ownctl[data-id]");
+    for (var i = 0; i < boxes.length; i++) {
+      var b = boxes[i], mode = b.classList.contains("tile") ? "tile" : b.classList.contains("full") ? "full" : "row";
+      var html = ctlHtml(b.getAttribute("data-id"), mode);
+      if (b.innerHTML !== html) b.innerHTML = html;
+    }
+    var thumbs = $grid.querySelectorAll(".card > .thumb");
+    for (var k = 0; k < thumbs.length; k++) {
+      if (!thumbs[k].querySelector(":scope > .ownctl")) {
+        thumbs[k].insertAdjacentHTML("beforeend", ctlBox(thumbs[k].parentNode.getAttribute("data-id"), "tile"));
+      }
+    }
   }
 
   function ownCounts() {
@@ -3240,77 +3299,24 @@
     if (L) {
       for (var i = 0; i < CARS.length; i++) {
         if (L.has("collection", CARS[i].id)) o++;
-        else if (L.has("wishlist", CARS[i].id)) w++;
+        if (L.has("wishlist", CARS[i].id)) w++;
       }
     }
     return { owned: o, wanted: w };
   }
 
-  // Update the markers on the cards already in the grid (no full re-render,
-  // so images and scroll position stay put).
-  function updateGridMarks() {
-    var cards = $grid.querySelectorAll(".card");
-    for (var i = 0; i < cards.length; i++) {
-      var th = cards[i].querySelector(".thumb");
-      if (!th) continue;
-      var want = markHtml(cards[i].getAttribute("data-id"));
-      var old = th.querySelector(":scope > .mark");
-      if ((old ? old.outerHTML : "") === want) continue;
-      if (old) old.remove();
-      if (want) th.insertAdjacentHTML("beforeend", want);
-    }
-  }
-
-  function renderOwnRow() {
-    var row = document.getElementById("ownRow");
-    if (!row) return;
-    if (!L || !currentCar) { row.innerHTML = ""; return; }
-    var have = L.has("collection", currentCar.id), want = L.has("wishlist", currentCar.id);
-    row.innerHTML =
-      '<button type="button" class="ownbtn own" data-list="collection" aria-pressed="' + have + '">' +
-        (have ? "✓ " : "") + "Have it</button>" +
-      '<button type="button" class="ownbtn want" data-list="wishlist" aria-pressed="' + want + '">' +
-        (want ? "♥" : "♡") + " Want it</button>";
-  }
-
-  // Called from the button's click, so lists.js can open Google's popup.
-  function toggleOwn(list) {
-    if (!L || !currentCar || (list !== "collection" && list !== "wishlist")) return;
-    var car = currentCar;
+  // A tap on +, − or the bookmark. car: { id, y (year), a (collection key), t (title) }.
+  // Runs inside the click, so lists.js can open Google's sign-in popup.
+  function ownAct(btn, car) {
+    if (!L) return;
+    var act = btn.getAttribute("data-own");
     var signedIn = !!L.user();
-    L.toggle(list, { id: car.id, y: curYear, a: curAssort, t: car.title }).then(function (on) {
-      if (!signedIn && on) toast("Signed in. Your lists are saved to your Google Drive.");
-    }, function (err) {
-      toast(err && err.message ? err.message : "Couldn't sign in.");
-    });
-  }
-
-  // Have it / Want it buttons on a scan result (c is a scan-index car).
-  function scanOwnHtml(c) {
-    if (!L) return "";
-    var have = L.has("collection", c.id), want = L.has("wishlist", c.id);
-    return '<button type="button" class="scanown own" data-list="collection" aria-pressed="' + have + '">' +
-             (have ? "✓ " : "") + "Have it</button>" +
-           '<button type="button" class="scanown want" data-list="wishlist" aria-pressed="' + want + '">' +
-             (want ? "♥" : "♡") + " Want it</button>";
-  }
-
-  function updateScanOwn() {
-    if (!SC.open) return;
-    var acts = $scanList.querySelectorAll(".scanact");
-    for (var i = 0; i < acts.length; i++) {
-      var m = SC.matches[parseInt(acts[i].getAttribute("data-i"), 10)];
-      if (m) acts[i].innerHTML = scanOwnHtml(m.car);
-    }
-  }
-
-  // Called from the button's click, so lists.js can open Google's popup.
-  function toggleScanOwn(list, c) {
-    if (!L || (list !== "collection" && list !== "wishlist")) return;
-    var signedIn = !!L.user();
-    L.toggle(list, { id: c.id, y: c.year, a: c.assort, t: c.title }).then(function (on) {
-      if (on) toast(list === "collection" ? "Added to your collection." : "Added to your wishlist.");
-      else if (signedIn) toast(list === "collection" ? "Removed from your collection." : "Removed from your wishlist.");
+    var p = act === "wish" ? L.toggle("wishlist", car) : L.step(car, act === "dec" ? -1 : 1);
+    if (tg && tg.HapticFeedback) { try { tg.HapticFeedback.impactOccurred("light"); } catch (e) {} }
+    p.then(function (r) {
+      if (act === "wish") toast(r ? "Saved to your wishlist." : "Removed from your wishlist.");
+      else if (!signedIn && r) toast("Signed in. Added to your collection.");
+      else if (act === "dec" && !r) toast("Removed from your collection.");
     }, function (err) {
       toast(err && err.message ? err.message : "Couldn't sign in.");
     });
@@ -3474,6 +3480,7 @@
           '<div class="bd"><div class="nm">' + esc(title) + "</div>" +
             '<div class="mt">' + esc(meta) + "</div>" +
             (tags ? '<div class="tags">' + tags + "</div>" : "") +
+            ctlBox(e.id, "row") +
           "</div>" +
         "</div>";
       rows.push(e);
@@ -3546,7 +3553,10 @@
     var row = e.target.closest ? e.target.closest(".scanrow") : null;
     if (!row) return;
     var entry = MC.rows[parseInt(row.getAttribute("data-i"), 10)];
-    if (entry) openMyCar(entry);
+    if (!entry) return;
+    var ownBtn = e.target.closest("[data-own]");
+    if (ownBtn) { ownAct(ownBtn, { id: entry.id, y: entry.y, a: entry.a, t: entry.t }); return; }
+    openMyCar(entry);
   });
   // A missing photo shows the "No photo" wheel instead of a broken image.
   $mcList.addEventListener("error", function (e) {
@@ -3563,9 +3573,7 @@
     renderAcctBtn();
     renderAcctSheet();
     if (!what || !what.lists) return;
-    renderOwnRow();
-    updateGridMarks();
-    updateScanOwn();
+    refreshCtls();
     if (ownFilter) render();
     var oc = ownCounts();
     if (CARS.length && oc.owned + "," + oc.wanted !== OWN_SIG) renderFilters();

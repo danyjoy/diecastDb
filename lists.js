@@ -19,6 +19,7 @@
   var VERSION = 1;
   var LISTS = ["collection", "wishlist"];
   var TOMBSTONE_DAYS = 90;
+  var MAX_QTY = 999;
   var SAVE_DELAY = 800;          // ms; several quick toggles become one write
   var TOKEN_MARGIN = 2 * 60000;  // treat a token as expired 2 minutes early
 
@@ -90,6 +91,7 @@
         var at = Number(e.at);
         out[name][id] = { y: y, a: a, t: typeof e.t === "string" ? e.t.slice(0, 200) : "",
                           at: isFinite(at) && at > 0 ? at : 1 };
+        if (name === "collection") out[name][id].q = cleanQty(e.q);
       }
       var rm = (removed[name] && typeof removed[name] === "object") ? removed[name] : {};
       for (var rid in rm) {
@@ -101,7 +103,13 @@
     return out;
   }
 
-  // Combine two copies. For each car the latest action wins: added at "at",
+  // Copies owned of one car: a whole number 1..MAX_QTY (older files have none: 1).
+  function cleanQty(q) {
+    q = Math.floor(Number(q));
+    return isFinite(q) && q >= 1 ? Math.min(q, MAX_QTY) : 1;
+  }
+
+  // Combine two copies. For each car the latest action wins: changed at "at",
   // or removed at the tombstone time. Tombstones older than 90 days are dropped.
   function merge(a, b) {
     var out = emptyDoc();
@@ -117,7 +125,10 @@
         var e = ea && eb ? (eb.at > ea.at ? eb : ea) : (ea || eb);
         var ra = a.removed[n][id] || 0, rb = b.removed[n][id] || 0;
         var r = ra > rb ? ra : rb;
-        if (e && e.at > r) out[n][id] = { y: e.y, a: e.a, t: e.t, at: e.at };
+        if (e && e.at > r) {
+          out[n][id] = { y: e.y, a: e.a, t: e.t, at: e.at };
+          if (n === "collection") out[n][id].q = cleanQty(e.q);
+        }
         else if (r && r >= cutoff) out.removed[n][id] = r;
       }
     }
@@ -376,15 +387,20 @@
   // ---------- Public API ----------
   function has(list, id) { return !!(doc[list] && own(doc[list], id)); }
 
-  function setEntry(list, car, on) {
+  function qty(id) { return own(doc.collection, id) ? cleanQty(doc.collection[id].q) : 0; }
+
+  // on: put the car in the list (q = copies, collection only); off: remove it.
+  function setEntry(list, car, on, q) {
     var id = String(car.id || "");
     if (!ID_RE.test(id) || LISTS.indexOf(list) === -1) return;
     var t = stamp();
     if (on) {
+      var wasOwned = list === "collection" && own(doc.collection, id);
       doc[list][id] = { y: String(car.y), a: String(car.a), t: String(car.t || "").slice(0, 200), at: t };
+      if (list === "collection") doc[list][id].q = cleanQty(q);
       delete doc.removed[list][id];
-      // Owning a car takes it off the wishlist.
-      if (list === "collection" && own(doc.wishlist, id)) {
+      // Getting a car you wanted takes it off the wishlist.
+      if (list === "collection" && !wasOwned && own(doc.wishlist, id)) {
         delete doc.wishlist[id];
         doc.removed.wishlist[id] = t;
       }
@@ -408,6 +424,29 @@
     setEntry(list, car, on);
     kick();
     return Promise.resolve(on);
+  }
+
+  // Owned copies +delta (the "−  n  +" control). 0 removes the car from the
+  // collection. Call from a click. Signed out: signs in first, then makes
+  // sure the car is owned (without adding a second copy if it already was).
+  // Resolves with the new number of copies.
+  function step(car, delta) {
+    if (!ID_RE.test(String(car.id || "")) || !YEAR_RE.test(String(car.y)) || !KEY_RE.test(String(car.a))) {
+      return Promise.resolve(0);
+    }
+    if (!user) {
+      if (delta <= 0) return Promise.resolve(0);
+      return signIn().then(function () {
+        if (!qty(car.id)) { setEntry("collection", car, true, 1); kick(); }
+        return qty(car.id);
+      });
+    }
+    var cur = qty(car.id);
+    var n = Math.max(0, Math.min(MAX_QTY, cur + delta));
+    if (n === cur) return Promise.resolve(cur);
+    setEntry("collection", car, n > 0, n);
+    kick();
+    return Promise.resolve(n);
   }
 
   function signIn() {
@@ -467,7 +506,7 @@
     for (var id in src) {
       if (!own(src, id)) continue;
       var e = src[id];
-      out.push({ id: id, y: e.y, a: e.a, t: e.t, at: e.at });
+      out.push({ id: id, y: e.y, a: e.a, t: e.t, at: e.at, q: list === "collection" ? cleanQty(e.q) : 0 });
     }
     out.sort(function (p, q) { return (q.y > p.y ? 1 : q.y < p.y ? -1 : 0) || q.at - p.at; });
     return out;
@@ -500,6 +539,8 @@
     // a later tap can open the sign-in popup without the browser blocking it.
     prepare: function () { loadGIS().catch(function () {}); },
     has: has,
+    qty: qty,
+    step: step,
     toggle: toggle,
     entries: entries,
     counts: function () { return { collection: countOf(doc, "collection"), wishlist: countOf(doc, "wishlist") }; },

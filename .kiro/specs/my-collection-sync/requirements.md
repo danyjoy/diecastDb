@@ -37,7 +37,7 @@ website, so that the Telegram Mini App stays a simple catalog browser.
 **Acceptance criteria**
 
 1. WHEN the app runs in Telegram mode THEN it SHALL NOT show the account
-   button, the Have it / Want it toggles, the owned/wanted markers, the
+   button, the + / bookmark controls, the
    Owned / Wanted filters or the My cars screen.
 2. WHEN the app runs in Telegram mode THEN it SHALL NOT load the Google
    sign-in script, the collection code, or make any request to Google.
@@ -94,19 +94,23 @@ its detail page, so that building my lists is quick.
 
 **Acceptance criteria**
 
-1. WHEN the detail view is open in browser mode THEN it SHALL show two
-   toggles: **Have it** and **Want it**.
+1. WHEN the detail view is open in browser mode THEN it SHALL show a **+**
+   control to add the car to the Collection, which turns into **− n +** (the
+   number of copies owned, 1–999; − at 1 removes the car), and a
+   **bookmark** toggle for the Wishlist. The same controls SHALL appear on
+   grid cards, scanner matches and My cars rows, and tapping them SHALL NOT
+   open the car.
 2. WHEN the user taps a toggle THEN its state SHALL change right away, and
    the change SHALL be saved to Drive in the background.
-3. WHEN a car is marked *Have it* THEN it SHALL be removed from the Wishlist
-   if it was there.
+3. WHEN a car is first added to the Collection THEN it SHALL be removed from
+   the Wishlist if it was there.
 4. IF the user isn't signed in THEN tapping a toggle SHALL offer to sign in,
    and apply the change once sign-in succeeds.
 5. IF a save fails THEN the app SHALL keep the change in the local cache,
    show that it isn't synced yet, and retry on the next change, the next app
    start, or a manual "Sync now".
 6. WHEN the card scanner shows its matches in browser mode THEN each match
-   SHALL have **Have it** and **Want it** buttons that save the car without
+   SHALL have the + and bookmark controls, which save the car without
    leaving the scanner and confirm with a short message. Tapping the rest of
    the row SHALL still open the car's detail.
 
@@ -117,11 +121,11 @@ have or want, so that I can spot them while browsing a year.
 
 **Acceptance criteria**
 
-1. WHEN a grid card's car is in the Collection THEN the card SHALL show an
-   "owned" marker.
-2. WHEN a grid card's car is in the Wishlist THEN the card SHALL show a
-   "wanted" marker.
-3. The markers SHALL NOT hide the existing TH / STH / Chase / Soft Chase
+1. WHEN a grid card's car is in the Collection THEN the card SHALL show
+   **− n +** with the number of copies.
+2. WHEN a grid card's car is in the Wishlist THEN its bookmark SHALL be
+   filled.
+3. The controls SHALL NOT hide the existing TH / STH / Chase / Soft Chase
    badges.
 4. The filter row SHALL offer **Owned** and **Wanted** filters for the loaded
    collection-year when the user has lists.
@@ -142,7 +146,9 @@ cars across every year and collection, so that I can review them.
 4. WHEN the user taps a car THEN the app SHALL load that car's collection and
    year and open its detail view.
 5. The screen SHALL push a browser history entry, so the phone's back gesture
-   closes it, following the existing overlay pattern.
+   closes it, following the existing overlay pattern. WHEN a car opened from
+   My cars is closed (in-page Back button, Telegram-style back, or the
+   browser/phone back) THEN the app SHALL return to My cars, not the grid.
 6. IF a stored car id is no longer in the catalog THEN the screen SHALL still
    list it using the saved title and mark it "not in catalog".
 
