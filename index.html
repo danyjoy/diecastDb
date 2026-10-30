@@ -615,6 +615,131 @@
   .scanner.live .only-live, .scanner.nocam .only-live, .scanner.review .only-review { display: inline-flex; }
   .scanner.nocam .shutter { visibility: hidden; }
   .scanner.busy .scanctl { pointer-events: none; opacity: .5; }
+
+  /* ---------- My collection & wishlist (browser only, see lists.js) ---------- */
+  :root { --own: var(--accent); --want: #d6336c; }
+  /* Search box + account button share a row; the title row stays as before. */
+  .searchrow { display: flex; align-items: center; gap: 8px; }
+  .searchrow .searchwrap { flex: 1; min-width: 0; }
+  .acctbtn {
+    position: relative; flex: 0 0 auto;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--card2); border: 1px solid var(--border); color: var(--text);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800; cursor: pointer;
+  }
+  .acctbtn[hidden] { display: none; }
+  .acctbtn.in { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .acctbtn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round; }
+  .acctbtn .adot { position: absolute; right: -1px; top: -1px; width: 12px; height: 12px;
+    border-radius: 50%; border: 2px solid var(--bg); display: none; }
+  .acctbtn .adot.warn { display: block; background: #f0a830; }
+  .acctbtn .adot.err { display: block; background: #ff5a5a; }
+
+  .acct { padding: 0 16px 18px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .acct p { color: var(--hint); font-size: 14px; margin: 0 0 12px; }
+  .gbtn {
+    width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin-top: 4px; padding: 12px; border-radius: 12px; border: 0; cursor: pointer;
+    background: #fff; color: #1f1f1f; font-size: 15px; font-weight: 700;
+  }
+  .gbtn svg { width: 20px; height: 20px; }
+  .acct .who { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .acct .av { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; background: var(--accent);
+    color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; }
+  .acct .unm { font-weight: 700; }
+  .acct .uem { color: var(--hint); font-size: 13px; word-break: break-all; }
+  .acct .st { font-size: 13px; padding: 9px 12px; border-radius: 10px; margin-bottom: 6px;
+    background: var(--card); border: 1px solid var(--border); color: var(--hint); }
+  .acct .st.ok { color: #7fd1a0; }
+  .acct .st.warn { color: #f0c070; }
+  .acct .st.err { color: #ff8a8a; }
+  .acct .series-row { padding: 12px 6px; }
+  .acct .series-row.danger .nm { color: #ff8a8a; }
+  .acct .msg { color: #ff8a8a; font-size: 13px; margin-top: 10px; }
+  .acct .foot { margin-top: 12px; font-size: 12px; color: var(--hint); }
+  .acct .foot a { color: var(--accent); }
+
+  /* Collection controls: "+" that becomes "− n +" (copies owned), and a
+     bookmark for the wishlist. Same markup on grid cards, scan results and
+     the detail view; the container class sets the size and layout. */
+  .ownctl button { font: inherit; cursor: pointer; -webkit-user-select: none; user-select: none; }
+  .qadd, .qty, .wish {
+    height: 32px; border-radius: 9px; border: 1.5px solid var(--accent);
+    background: #fff; color: var(--accent);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800; box-shadow: 0 1px 4px rgba(0,0,0,.2);
+  }
+  .ownctl .qadd { min-width: 32px; padding: 0 6px; gap: 6px; font-weight: 800; }
+  .qty { padding: 0; overflow: hidden; }
+  .ownctl .qty button { width: 30px; height: 100%; padding: 0; border: 0; background: transparent;
+    color: inherit; display: inline-flex; align-items: center; justify-content: center; }
+  .ownctl svg.pm { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.8;
+    stroke-linecap: round; flex: 0 0 auto; }
+  .qty .n { min-width: 16px; text-align: center; font-size: 16px; font-weight: 800; }
+  .wish { width: 32px; padding: 0; gap: 6px; }
+  .wish svg { width: 17px; height: 17px; flex: 0 0 auto; fill: none; stroke: currentColor;
+    stroke-width: 2.2; stroke-linejoin: round; }
+  .wish.on { color: var(--want); border-color: var(--want); }
+  .wish.on svg { fill: currentColor; }
+  .qadd:active, .qty button:active, .wish:active { opacity: .6; }
+
+  /* Grid card: top-right of the photo, clear of the rarity badge (top-left). */
+  .ownctl.tile { position: absolute; top: 7px; right: 7px; z-index: 2;
+    display: flex; align-items: center; gap: 6px; }
+  .ownctl.tile .wish { order: -1; } /* bookmark left of +, so + stays in the corner */
+  /* Owned (grid only): a tick, plus ×n for several copies. Not a button. */
+  .qown {
+    height: 32px; min-width: 32px; padding: 0 6px; gap: 3px; border-radius: 9px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--own); color: #fff; font-weight: 800; font-size: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.2); pointer-events: none;
+  }
+  .qown svg.pm { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 3;
+    stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Rows with controls (My cars, scan results): photo lines up with the title. */
+  .scanrow:has(> .bd > .ownctl) { align-items: flex-start; }
+
+  /* Off the white photo (detail view, scan results, My cars): dark controls
+     that match the theme. The grid tile keeps the white ones above. */
+  .ownctl.row .qadd, .ownctl.row .qty, .ownctl.row .wish,
+  .ownctl.full .qadd, .ownctl.full .qty, .ownctl.full .wish {
+    background: var(--card2); border-color: var(--border); color: var(--accent); box-shadow: none;
+  }
+  .ownctl.row .qty, .ownctl.full .qty { border-color: var(--accent); }
+  .ownctl.full .qadd { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ownctl.row .wish.on, .ownctl.full .wish.on { color: var(--want); border-color: var(--want); }
+  /* Scan results and My cars rows. */
+  .ownctl.row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  /* Detail view: full-width row with labels. */
+  .ownctl.full { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
+  .ownctl.full .qadd, .ownctl.full .qty, .ownctl.full .wish { height: 42px; border-radius: 12px; }
+  .ownctl.full .qadd { flex: 1; font-size: 15px; }
+  .ownctl.full .qty button { width: 40px; }
+  .ownctl.full .qlbl { flex: 1; font-weight: 700; color: var(--text); }
+  .ownctl.full .wish { width: auto; padding: 0 14px; font-size: 14px; }
+  .chip.own.active { background: var(--own); border-color: var(--own); color: #fff; }
+  .chip.want.active { background: var(--want); border-color: var(--want); color: #fff; }
+
+  /* My cars: full screen, below the detail view (20) so a car opens on top. */
+  .mycars { position: fixed; inset: 0; z-index: 18; background: var(--bg); display: none; flex-direction: column; }
+  .mycars.open { display: flex; }
+  .mchead { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .mchead .ttl { font-weight: 800; font-size: 17px; }
+  .mctabs { display: flex; gap: 8px; padding: 12px 16px 0; }
+  .mcsearch { padding: 12px 16px 4px; }
+  .mclist { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 8px 24px; }
+  .mclist .sthumb .noimg span { display: none; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 45;
+    transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); text-align: center;
+    background: #2a2d35; color: #fff; padding: 10px 16px; border-radius: 12px; font-size: 14px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .2s ease;
+  }
+  .toast.show { opacity: 1; }
 </style>
 </head>
 <body>
@@ -623,12 +748,16 @@
       <img class="logo" src="./logo-header.svg" alt="" />
       <h1 id="title">Hot Wheels</h1>
     </div>
+    <div class="searchrow">
     <div class="searchwrap">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
       <input id="search" class="search has-scan" type="search" placeholder="Search series, vehicles, SKU…" autocomplete="off" />
       <button id="scanBtn" class="scanbtn" type="button" title="Scan a card" aria-label="Scan a card with the camera">
         <svg viewBox="0 0 24 24"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.8l1.4-2h4.6l1.4 2h1.8A2.5 2.5 0 0 1 20 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"/><circle cx="12" cy="12.8" r="3.6"/></svg>
       </button>
+    </div>
+      <!-- My collection: browser only, unhidden by loadLists() -->
+      <button id="acctBtn" class="acctbtn" type="button" hidden aria-label="My collection"></button>
     </div>
     <div id="collbar" class="collbar"></div>
     <div id="filters" class="filters"></div>
@@ -661,6 +790,25 @@
       <div id="gallery" class="gallery"></div>
       <div id="info" class="info"></div>
     </div>
+  </div>
+
+  <!-- My cars: the user's collection and wishlist (browser only, see lists.js) -->
+  <div id="mycars" class="mycars" aria-hidden="true">
+    <div class="mchead">
+      <button id="mcBack" class="backbtn" type="button">
+        <svg viewBox="0 0 24 24"><polyline points="15 5 8 12 15 19"/></svg>
+        Back
+      </button>
+      <span class="ttl">My cars</span>
+    </div>
+    <div id="mcTabs" class="mctabs"></div>
+    <div class="mcsearch">
+      <div class="searchwrap">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+        <input id="mcSearch" class="search" type="search" placeholder="Search your cars…" autocomplete="off" />
+      </div>
+    </div>
+    <div id="mcList" class="mclist scanlist"></div>
   </div>
 
   <!-- Fullscreen zoom viewer -->
@@ -712,6 +860,20 @@
       <div id="yearList" class="series-list"></div>
     </div>
   </div>
+
+  <!-- Account / My collection (bottom sheet, browser only) -->
+  <div id="acctSheet" class="sheet">
+    <div class="sheet-backdrop" id="acctBackdrop"></div>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <span>My collection</span>
+        <button id="acctClose" class="sheet-close" type="button" aria-label="Close">✕</button>
+      </div>
+      <div id="acctBody" class="acct"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <!-- Card scanner: camera → OCR → match against data/scan-index.json -->
   <div id="scanner" class="scanner" aria-hidden="true">
@@ -775,9 +937,15 @@
   // in-page Back bar to avoid two back buttons.
   if (inTelegram) document.body.classList.add("in-telegram");
 
+  // My collection & wishlist (lists.js, saved to the user's Google Drive) is
+  // browser-only. In the Telegram Mini App none of it is loaded or shown.
+  var LISTS_ON = !inTelegram;
+  var L = null;              // window.DiecastLists once lists.js has loaded
+
   var CARS = [];
   var activeSeries = null;   // null = all
   var rarityFilter = null;   // null | "th" (TH + STH)
+  var ownFilter = null;      // null | "owned" | "wanted" (needs lists.js)
   var queryText = "";
 
   var MANIFEST = null;       // data/index.json
@@ -1045,6 +1213,7 @@
     // rarityFilter: null (all), "th"/"sth"/"chase" (rarity), or "soft" (soft chase).
     if (rarityFilter === "soft") { if (!isSoftChase(car)) return false; }
     else if (rarityFilter && rarityClass(car.rarity) !== rarityFilter) return false;
+    if (ownFilter && !(L && L.has(ownFilter === "owned" ? "collection" : "wishlist", car.id))) return false;
     if (queryText) {
       var hay = [car.title, car.series_name, car.assortment, car.sku, car.casting_number,
                  car.oem, car.rarity, car.body_color, car.mainline_index]
@@ -1101,6 +1270,7 @@
         '<div class="card' + cls + '" data-id="' + esc(c.id) + '">' +
           '<div class="thumb' + (thumb ? " loading" : "") + '">' + badge + softBadge +
             (thumb ? '<img loading="lazy" src="' + esc(thumb) + '" alt="">' : NOIMG_HTML) +
+            ctlBox(c.id, "tile") +
           '</div>' +
           '<div class="cardbody">' +
             '<div class="title">' + esc(c.title) + '</div>' +
@@ -1151,7 +1321,7 @@
       else if (r === "chase") chaseCount++;
     }
 
-    var html = '<div class="chip' + (!activeSeries && !activeSub && !rarityFilter ? " active" : "") +
+    var html = '<div class="chip' + (!activeSeries && !activeSub && !rarityFilter && !ownFilter ? " active" : "") +
                '" data-kind="all">All</div>';
     // Super TH first — it's the rarest/most important. The chip is gold-styled
     // even when inactive so it stands out in the bar.
@@ -1169,6 +1339,15 @@
       if (softCount) html += '<div class="chip th' + (rarityFilter === "soft" ? " active" : "") +
                              '" data-kind="soft">Soft Chase (' + softCount + ")</div>";
     }
+
+    // Owned / Wanted (browser only): cars of this collection-year in the
+    // user's lists. These combine with the other filters.
+    var oc = ownCounts();
+    OWN_SIG = oc.owned + "," + oc.wanted;
+    if (oc.owned || ownFilter === "owned") html += '<div class="chip own' + (ownFilter === "owned" ? " active" : "") +
+                                                   '" data-kind="owned">✓ Owned (' + oc.owned + ")</div>";
+    if (oc.wanted || ownFilter === "wanted") html += '<div class="chip want' + (ownFilter === "wanted" ? " active" : "") +
+                                                     '" data-kind="wanted">♥ Wanted (' + oc.wanted + ")</div>";
 
     // First-level picker pill (Series for mainline, Assortment for premium/silver).
     if (GROUPS.length) {
@@ -1709,7 +1888,9 @@
       (rc ? '<div class="rarity ' + rc + '">' + esc(car.rarity) + "</div>" : "") +
       (isSoftChase(car) ? '<div class="rarity th">Soft Chase</div>' : "") +
       (isMetalBase(car) && !isSoftChase(car) ? '<div class="rarity meta">Metal base</div>' : "") +
+      ctlBox(car.id, "full") +
       specs;
+    if (L) L.prepare(); // so a tap on + or the bookmark can open Google's popup
 
     $detail.classList.add("open");
     $dscroll.scrollTop = 0;
@@ -1740,20 +1921,25 @@
       tg.BackButton.offClick(closeDetail);
     }
     if (fromPop !== true) {
-      // Remove the history entry we pushed when opening (triggers popstate,
-      // which no-ops since the overlay is already closed).
-      try { history.back(); } catch (e) {}
+      // Remove the history entry we pushed when opening. That fires popstate;
+      // when My cars is open underneath, tell the handler to ignore it, or it
+      // would close My cars too.
+      if (MC.open) SELF_POP = true;
+      try { history.back(); } catch (e) { SELF_POP = false; }
     }
   }
 
   // Back gesture / hardware back / browser back fires popstate. If the detail
   // is open, consume it to close the detail rather than leave the app.
   // The zoom viewer sits on top of the detail, so it closes first.
+  var SELF_POP = false; // set by closeDetail when it pops its own entry
   window.addEventListener("popstate", function () {
     if (Z.ignorePop) { Z.ignorePop = false; return; }
+    if (SELF_POP) { SELF_POP = false; return; }
     if (Z.open) closeZoom(true);
     else if (SC.open) closeScanner(true);
     else if ($detail.classList.contains("open")) closeDetail(true);
+    else if (MC.open) closeMyCars(true);
   });
 
   // --- Events ---
@@ -1794,6 +1980,12 @@
       copyText(copyBtn.getAttribute("data-copy") || "", copyBtn);
       return;
     }
+    // + / − / bookmark (browser only).
+    var ownBtn = e.target.closest ? e.target.closest("[data-own]") : null;
+    if (ownBtn) {
+      if (currentCar) ownAct(ownBtn, { id: currentCar.id, y: curYear, a: curAssort, t: currentCar.title });
+      return;
+    }
     var link = e.target.closest ? e.target.closest(".v.link, .sublink") : null;
     if (!link) return;
     var act = link.getAttribute("data-act");
@@ -1814,7 +2006,15 @@
       $search.value = val; queryText = val;
     }
 
-    closeDetail();
+    ownFilter = null;
+    if (MC.open) {
+      // Opened from My cars: close both and drop both history entries at once.
+      closeDetail(true);
+      closeMyCars(true);
+      try { history.go(-2); } catch (e2) {}
+    } else {
+      closeDetail();
+    }
     buildSeriesChips();
     render();
     window.scrollTo(0, 0);
@@ -1848,6 +2048,14 @@
     var card = e.target.closest ? e.target.closest(".card") : null;
     if (!card) return;
     var id = card.getAttribute("data-id");
+    // + / − / bookmark on the photo: change the lists, don't open the car.
+    var ownBtn = e.target.closest("[data-own]");
+    if (ownBtn) {
+      for (var j = 0; j < CARS.length; j++) {
+        if (CARS[j].id === id) { ownAct(ownBtn, { id: id, y: curYear, a: curAssort, t: CARS[j].title }); break; }
+      }
+      return;
+    }
     for (var i = 0; i < CARS.length; i++) {
       if (CARS[i].id === id) { showDetail(CARS[i]); break; }
     }
@@ -1869,7 +2077,8 @@
     var chip = e.target.closest ? e.target.closest(".chip") : null;
     if (!chip) return;
     var kind = chip.getAttribute("data-kind");
-    if (kind === "all") { activeSeries = null; activeSub = null; rarityFilter = null; }
+    if (kind === "all") { activeSeries = null; activeSub = null; rarityFilter = null; ownFilter = null; }
+    else if (kind === "owned" || kind === "wanted") { ownFilter = (ownFilter === kind ? null : kind); }
     else if (kind === "th") { rarityFilter = (rarityFilter === "th" ? null : "th"); activeSeries = null; activeSub = null; }
     else if (kind === "sth") { rarityFilter = (rarityFilter === "sth" ? null : "sth"); activeSeries = null; activeSub = null; }
     else if (kind === "chase") { rarityFilter = (rarityFilter === "chase" ? null : "chase"); activeSeries = null; activeSub = null; }
@@ -1967,7 +2176,7 @@
     }
     curAssort = assortKey;
     curYear = String(year);
-    activeSeries = null; activeSub = null; rarityFilter = null;
+    activeSeries = null; activeSub = null; rarityFilter = null; ownFilter = null;
 
     // How this collection groups its filters (one or two levels).
     var entry = assortmentEntry(assortKey);
@@ -2907,6 +3116,7 @@
           '<div class="bd"><div class="nm">' + esc(c.title) + "</div>" +
             '<div class="mt">' + esc(meta) + "</div>" +
             (tags ? '<div class="tags">' + tags + "</div>" : "") +
+            ctlBox(c.id, "row") +
           "</div>" +
           '<span class="pct">' + pct + "%</span>" +
         "</div>";
@@ -2948,6 +3158,7 @@
     }
     // Start downloading the catalog index and OCR engine while the user aims.
     getIndex().catch(function () {});
+    if (L) L.prepare(); // Have it / Want it on results may need Google's popup
     getEngine().catch(function () {});
     startCamera();
   }
@@ -3002,6 +3213,14 @@
     scanTextTimer = setTimeout(function () { renderScanMatches(); }, 250);
   });
   $scanList.addEventListener("click", function (e) {
+    // + / − / bookmark on a result: save without leaving the scanner.
+    var ob = e.target.closest ? e.target.closest("[data-own]") : null;
+    if (ob) {
+      var row0 = ob.closest(".scanrow");
+      var sm = row0 && SC.matches[parseInt(row0.getAttribute("data-i"), 10)];
+      if (sm) ownAct(ob, { id: sm.car.id, y: sm.car.year, a: sm.car.assort, t: sm.car.title });
+      return;
+    }
     var row = e.target.closest ? e.target.closest(".scanrow") : null;
     if (!row) return;
     var m = SC.matches[parseInt(row.getAttribute("data-i"), 10)];
@@ -3010,6 +3229,406 @@
   document.addEventListener("keydown", function (e) {
     if (SC.open && e.key === "Escape") closeScanner();
   });
+
+  // --- My collection & wishlist (browser only) ---
+  //
+  // lists.js keeps the lists in the user's own Google Drive (hidden app data
+  // folder) with a localStorage copy. This part is only the UI: the header
+  // account button + sheet, Have it / Want it in the detail view, grid
+  // markers, Owned / Wanted filters and the My cars screen. In Telegram
+  // (LISTS_ON false) lists.js is never loaded, so L stays null and every
+  // function below does nothing.
+
+  var $acctBtn = document.getElementById("acctBtn");
+  var $acctSheet = document.getElementById("acctSheet");
+  var $acctBody = document.getElementById("acctBody");
+  var $mycars = document.getElementById("mycars");
+  var $mcTabs = document.getElementById("mcTabs");
+  var $mcSearch = document.getElementById("mcSearch");
+  var $mcList = document.getElementById("mcList");
+  var $toast = document.getElementById("toast");
+
+  var OWN_SIG = "";          // owned,wanted counts last shown in the filter bar
+  var ACCT = { open: false, err: "" };
+  var MC = { open: false, tab: "collection", run: 0, byId: null, rows: [] };
+
+  var PERSON_SVG = '<svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>';
+  var G_SVG = '<svg viewBox="0 0 48 48" aria-hidden="true">' +
+    '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>' +
+    '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>' +
+    '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>' +
+    '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
+
+  var toastTimer = null;
+  function toast(msg) {
+    $toast.textContent = msg;
+    $toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { $toast.classList.remove("show"); }, 3500);
+  }
+
+  var BOOKMARK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 3.5h11v17l-5.5-4-5.5 4z"/></svg>';
+  var PLUS_SVG = '<svg class="pm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+  var CHECK_SVG = '<svg class="pm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var MINUS_SVG = '<svg class="pm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>';
+
+  // Collection controls for one car: "+" (not owned) or "− n +" (copies
+  // owned), and a bookmark for the wishlist. mode: "tile" (grid photo),
+  // "row" (scan results, My cars) or "full" (detail view, with labels).
+  function ctlHtml(id, mode) {
+    var q = L.qty(id), w = L.has("wishlist", id), det = mode === "full";
+    // Grid tile, owned: just a tick (and ×n). It isn't a button, so a tap
+    // opens the car, where the count can be changed.
+    if (q && mode === "tile") {
+      return '<span class="qown" title="In your collection' + (q > 1 ? " (" + q + ")" : "") + '">' +
+               CHECK_SVG + (q > 1 ? '<span class="n">×' + q + "</span>" : "") + "</span>";
+    }
+    var add = q
+      ? (det ? '<span class="qlbl">In your collection</span>' : "") +
+        '<span class="qty" role="group" aria-label="Copies in your collection">' +
+          '<button type="button" data-own="dec" aria-label="Remove one" title="Remove one">' + MINUS_SVG + "</button>" +
+          '<span class="n">' + q + "</span>" +
+          '<button type="button" data-own="inc" aria-label="Add one more" title="Add one more">' + PLUS_SVG + "</button>" +
+        "</span>"
+      : '<button type="button" class="qadd" data-own="inc" aria-label="Add to my collection" title="Add to my collection">' +
+          PLUS_SVG + (det ? "Add to collection" : "") + "</button>";
+    // Once a car is owned, the wishlist doesn't apply, so no bookmark.
+    if (q) return add;
+    var wl = w ? "Remove from wishlist" : "Add to wishlist";
+    var wish = '<button type="button" class="wish' + (w ? " on" : "") + '" data-own="wish" aria-pressed="' + w +
+               '" aria-label="' + wl + '" title="' + wl + '">' + BOOKMARK_SVG +
+               (det ? (w ? "On wishlist" : "Wishlist") : "") + "</button>";
+    return add + wish;
+  }
+
+  // The container, tagged with the car id so refreshCtls() can redraw it.
+  // Empty in Telegram (lists.js isn't loaded there).
+  function ctlBox(id, mode) {
+    if (!L) return LISTS_ON && mode === "full" ? '<div class="ownctl full" data-id="' + esc(id) + '"></div>' : "";
+    return '<div class="ownctl ' + mode + '" data-id="' + esc(id) + '">' + ctlHtml(id, mode) + "</div>";
+  }
+
+  // Redraw every control on screen (grid, detail, scan results, My cars), or
+  // add them to the grid if lists.js loaded after the grid was drawn.
+  function refreshCtls() {
+    if (!L) return;
+    var boxes = document.querySelectorAll(".ownctl[data-id]");
+    for (var i = 0; i < boxes.length; i++) {
+      var b = boxes[i], mode = b.classList.contains("tile") ? "tile" : b.classList.contains("full") ? "full" : "row";
+      var html = ctlHtml(b.getAttribute("data-id"), mode);
+      if (b.innerHTML !== html) b.innerHTML = html;
+    }
+    var thumbs = $grid.querySelectorAll(".card > .thumb");
+    for (var k = 0; k < thumbs.length; k++) {
+      if (!thumbs[k].querySelector(":scope > .ownctl")) {
+        thumbs[k].insertAdjacentHTML("beforeend", ctlBox(thumbs[k].parentNode.getAttribute("data-id"), "tile"));
+      }
+    }
+  }
+
+  function ownCounts() {
+    var o = 0, w = 0;
+    if (L) {
+      for (var i = 0; i < CARS.length; i++) {
+        if (L.has("collection", CARS[i].id)) o++;
+        if (L.has("wishlist", CARS[i].id)) w++;
+      }
+    }
+    return { owned: o, wanted: w };
+  }
+
+  // A tap on +, − or the bookmark. car: { id, y (year), a (collection key), t (title) }.
+  // Runs inside the click, so lists.js can open Google's sign-in popup.
+  function ownAct(btn, car) {
+    if (!L) return;
+    var act = btn.getAttribute("data-own");
+    var signedIn = !!L.user();
+    var p = act === "wish" ? L.toggle("wishlist", car) : L.step(car, act === "dec" ? -1 : 1);
+    if (tg && tg.HapticFeedback) { try { tg.HapticFeedback.impactOccurred("light"); } catch (e) {} }
+    p.then(function (r) {
+      if (act === "wish") toast(r ? "Saved to your wishlist." : "Removed from your wishlist.");
+      else if (!signedIn && r) toast("Signed in. Added to your collection.");
+      else if (act === "dec" && !r) toast("Removed from your collection.");
+    }, function (err) {
+      toast(err && err.message ? err.message : "Couldn't sign in.");
+    });
+  }
+
+  function initialOf(u) {
+    return String((u && (u.name || u.email)) || "?").trim().charAt(0).toUpperCase() || "?";
+  }
+
+  function renderAcctBtn() {
+    if (!LISTS_ON) return;
+    var u = L && L.user(), st = L ? L.state() : "signed-out";
+    $acctBtn.classList.toggle("in", !!u);
+    $acctBtn.innerHTML = (u ? esc(initialOf(u)) : PERSON_SVG) +
+      '<span class="adot' + (st === "unsynced" ? " warn" : st === "error" ? " err" : "") + '"></span>';
+    $acctBtn.title = u ? "My collection (" + u.email + ")" : "Sign in to keep your collection";
+  }
+
+  function statusLine() {
+    var st = L.state(), msg = L.message();
+    var text = st === "synced" ? "✓ Saved to your Google Drive."
+      : st === "syncing" ? "Syncing…"
+      : st === "unsynced" ? "Changes not saved to Google Drive yet."
+      : st === "stale" ? "Tap Sync now to get changes from your other devices."
+      : st === "error" ? "Sync problem." : "";
+    var cls = st === "synced" ? " ok" : st === "unsynced" ? " warn" : st === "error" ? " err" : "";
+    return '<div class="st' + cls + '">' + esc(text) + (msg ? " " + esc(msg) : "") + "</div>";
+  }
+
+  function renderAcctSheet() {
+    if (!ACCT.open) return;
+    var html;
+    var u = L && L.user();
+    if (!L) {
+      html = "<p>Loading…</p>";
+    } else if (!u) {
+      html =
+        "<p>Sign in with Google to keep a list of the cars you own and the cars you want, on all your devices.</p>" +
+        "<p>Your lists are saved in your own Google Drive, in a hidden folder only this app can open. " +
+        "We don't have a server and never see your data.</p>" +
+        '<button class="gbtn" type="button" data-act="signin">' + G_SVG + "Sign in with Google</button>";
+    } else {
+      var c = L.counts();
+      html =
+        '<div class="who"><span class="av">' + esc(initialOf(u)) + "</span>" +
+          '<div><div class="unm">' + esc(u.name || "Signed in") + '</div><div class="uem">' + esc(u.email) + "</div></div></div>" +
+        statusLine() +
+        '<div class="series-row" data-act="mycars"><span class="nm">My cars</span>' +
+          '<span class="ct">' + c.collection + " owned · " + c.wishlist + " wanted</span></div>" +
+        '<div class="series-row" data-act="sync"><span class="nm">Sync now</span></div>' +
+        '<div class="series-row" data-act="export"><span class="nm">Export (JSON)</span></div>' +
+        '<div class="series-row danger" data-act="delete"><span class="nm">Delete my data</span></div>' +
+        '<div class="series-row" data-act="signout"><span class="nm">Sign out</span></div>';
+    }
+    if (ACCT.err) html += '<div class="msg">' + esc(ACCT.err) + "</div>";
+    html += '<div class="foot"><a href="./privacy.html" target="_blank" rel="noopener">Privacy: what is stored and where</a></div>';
+    $acctBody.innerHTML = html;
+  }
+
+  function openAcctSheet() {
+    if (!LISTS_ON) return;
+    ACCT.open = true;
+    ACCT.err = "";
+    if (L) L.prepare();
+    renderAcctSheet();
+    $acctSheet.classList.add("open");
+  }
+  function closeAcctSheet() {
+    ACCT.open = false;
+    $acctSheet.classList.remove("open");
+  }
+
+  function exportLists() {
+    var url = URL.createObjectURL(L.exportJSON());
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "diecastdb-lists.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  }
+
+  $acctBtn.addEventListener("click", openAcctSheet);
+  document.getElementById("acctBackdrop").addEventListener("click", closeAcctSheet);
+  document.getElementById("acctClose").addEventListener("click", closeAcctSheet);
+  $acctBody.addEventListener("click", function (e) {
+    var el = e.target.closest ? e.target.closest("[data-act]") : null;
+    if (!el || !L) return;
+    var act = el.getAttribute("data-act");
+    ACCT.err = "";
+    if (act === "signin") {
+      L.signIn().then(function () {
+        toast("Signed in. Your lists are saved to your Google Drive.");
+      }, function (err) {
+        ACCT.err = (err && err.message) || "Couldn't sign in.";
+        renderAcctSheet();
+      });
+    } else if (act === "mycars") {
+      closeAcctSheet();
+      openMyCars();
+      return;
+    } else if (act === "sync") {
+      L.syncNow();
+    } else if (act === "export") {
+      exportLists();
+    } else if (act === "delete") {
+      if (!window.confirm("Delete your collection and wishlist from your Google Drive and this device? This can't be undone.")) return;
+      L.deleteAll().then(function () { toast("Your data was deleted."); }, function () {});
+    } else if (act === "signout") {
+      if (L.hasUnsaved() &&
+          !window.confirm("Some changes aren't saved to Google Drive yet and will be lost. Sign out anyway?")) return;
+      L.signOut();
+      toast("Signed out.");
+    }
+    renderAcctSheet();
+  });
+
+  // ---- My cars screen ----
+  function scanById() {
+    if (MC.byId) return MC.byId;
+    if (!SC.index) return null;
+    var m = {}, t = SC.index.titles;
+    for (var i = 0; i < t.length; i++) {
+      for (var j = 0; j < t[i].cars.length; j++) m[t[i].cars[j].id] = t[i].cars[j];
+    }
+    MC.byId = m;
+    return m;
+  }
+
+  function renderMyCars() {
+    if (!MC.open || !L) return;
+    var c = L.counts();
+    $mcTabs.innerHTML =
+      '<div class="chip' + (MC.tab === "collection" ? " active" : "") + '" data-tab="collection">Collection (' + c.collection + ")</div>" +
+      '<div class="chip' + (MC.tab === "wishlist" ? " active" : "") + '" data-tab="wishlist">Wishlist (' + c.wishlist + ")</div>";
+
+    var all = L.entries(MC.tab), idx = scanById();
+    var terms = $mcSearch.value.toLowerCase().split(/\s+/).filter(Boolean);
+    var rows = [], html = "";
+    for (var i = 0; i < all.length; i++) {
+      var e = all[i], m = idx ? idx[e.id] : null;
+      var title = (m && m.title) || e.t || e.id;
+      if (terms.length) {
+        var hay = [title, e.id, e.y, labelFor(e.a), m ? m.series : "", m ? m.sku : ""].join(" ").toLowerCase();
+        var ok = true;
+        for (var k = 0; k < terms.length; k++) if (hay.indexOf(terms[k]) === -1) { ok = false; break; }
+        if (!ok) continue;
+      }
+      var meta = [e.y, labelFor(e.a), m ? m.series : ""].filter(Boolean).join(" · ");
+      var tags = "";
+      if (m && m.rarity === "sth") tags += '<span class="tag gold">Super TH</span>';
+      else if (m && m.rarity === "th") tags += '<span class="tag silver">Treasure Hunt</span>';
+      else if (m && m.rarity === "chase") tags += '<span class="tag chase">Chase</span>';
+      if (idx && !m) tags += '<span class="tag">Not in catalog</span>';
+      html +=
+        '<div class="scanrow" data-i="' + rows.length + '">' +
+          '<div class="sthumb">' +
+            ((!m || m.img) ? '<img loading="lazy" src="' + esc(scanImg(e.id)) + '" alt="">' : NOIMG_HTML) +
+          "</div>" +
+          '<div class="bd"><div class="nm">' + esc(title) + "</div>" +
+            '<div class="mt">' + esc(meta) + "</div>" +
+            (tags ? '<div class="tags">' + tags + "</div>" : "") +
+            ctlBox(e.id, "row") +
+          "</div>" +
+        "</div>";
+      rows.push(e);
+    }
+    MC.rows = rows;
+    if (!all.length) {
+      html = '<div class="empty">' + (MC.tab === "collection"
+        ? "No cars yet. Open a car and tap <b>Have it</b>."
+        : "No cars yet. Open a car and tap <b>Want it</b>.") + "</div>";
+    } else if (!rows.length) {
+      html = '<div class="empty">No matches.</div>';
+    }
+    $mcList.innerHTML = html;
+  }
+
+  function openMyCars() {
+    if (!L || MC.open) return;
+    MC.open = true;
+    $mcSearch.value = "";
+    $mycars.classList.add("open");
+    $mycars.setAttribute("aria-hidden", "false");
+    renderMyCars();
+    $mcList.scrollTop = 0;
+    try { history.pushState({ mycars: true }, ""); } catch (e) {}
+    // The scan index adds series, rarity and "not in catalog" to each row.
+    if (!SC.index) {
+      getIndex().then(function () { MC.byId = null; renderMyCars(); }, function () {});
+    }
+  }
+
+  function closeMyCars(fromPop) {
+    if (!MC.open) return;
+    MC.open = false;
+    MC.run++;
+    $mycars.classList.remove("open");
+    $mycars.setAttribute("aria-hidden", "true");
+    if (fromPop !== true) { try { history.back(); } catch (e) {} }
+  }
+
+  // Load the car's collection-year if needed, then open its detail on top.
+  function openMyCar(e) {
+    var run = ++MC.run;
+    function show() {
+      if (!MC.open || run !== MC.run) return;
+      for (var i = 0; i < CARS.length; i++) {
+        if (CARS[i].id === e.id) { showDetail(CARS[i]); return; }
+      }
+      toast("This car isn't in the catalog any more.");
+    }
+    if (yearsFor(e.a).indexOf(e.y) === -1) { toast("This car isn't in the catalog any more."); return; }
+    if (curAssort === e.a && curYear === e.y && CARS.length) { show(); return; }
+    $search.value = ""; queryText = "";
+    loadCollection(e.a, e.y).then(show);
+  }
+
+  document.getElementById("mcBack").addEventListener("click", function () { closeMyCars(); });
+  $mcTabs.addEventListener("click", function (e) {
+    var t = e.target.closest ? e.target.closest("[data-tab]") : null;
+    if (!t) return;
+    MC.tab = t.getAttribute("data-tab");
+    renderMyCars();
+    $mcList.scrollTop = 0;
+  });
+  var mcSearchTimer = null;
+  $mcSearch.addEventListener("input", function () {
+    clearTimeout(mcSearchTimer);
+    mcSearchTimer = setTimeout(renderMyCars, 120);
+  });
+  $mcList.addEventListener("click", function (e) {
+    var row = e.target.closest ? e.target.closest(".scanrow") : null;
+    if (!row) return;
+    var entry = MC.rows[parseInt(row.getAttribute("data-i"), 10)];
+    if (!entry) return;
+    var ownBtn = e.target.closest("[data-own]");
+    if (ownBtn) { ownAct(ownBtn, { id: entry.id, y: entry.y, a: entry.a, t: entry.t }); return; }
+    openMyCar(entry);
+  });
+  // A missing photo shows the "No photo" wheel instead of a broken image.
+  $mcList.addEventListener("error", function (e) {
+    var img = e.target;
+    if (img && img.tagName === "IMG" && img.parentNode) img.parentNode.innerHTML = NOIMG_HTML;
+  }, true);
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (ACCT.open) { closeAcctSheet(); return; }
+    if (MC.open && !Z.open && !SC.open && !$detail.classList.contains("open")) closeMyCars();
+  });
+
+  function onListsChange(what) {
+    renderAcctBtn();
+    renderAcctSheet();
+    if (!what || !what.lists) return;
+    refreshCtls();
+    if (ownFilter) render();
+    var oc = ownCounts();
+    if (CARS.length && oc.owned + "," + oc.wanted !== OWN_SIG) renderFilters();
+    renderMyCars();
+  }
+
+  (function loadLists() {
+    if (!LISTS_ON) return;
+    $acctBtn.hidden = false;
+    renderAcctBtn();
+    var s = document.createElement("script");
+    s.src = "./lists.js";
+    s.async = true;
+    s.onload = function () {
+      if (!window.DiecastLists) return;
+      L = window.DiecastLists;
+      L.on("change", onListsChange);
+      L.init();
+      onListsChange({ lists: true });
+    };
+    s.onerror = function () { $acctBtn.hidden = true; };
+    document.head.appendChild(s);
+  })();
 
   // --- Boot: load the manifest, then the default collection ---
   fetch("./data/index.json", { cache: "no-store" })

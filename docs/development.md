@@ -57,6 +57,14 @@ data workflow pushes to `main` too (see
 `ocr.js` is the scanner's text reader, exposed as `window.PaddleOCRLite`. It
 is loaded only when the scanner opens. See [card-scanner.md](card-scanner.md).
 
+`lists.js` is the collection & wishlist sync (Google sign-in + Drive app data
+folder), exposed as `window.DiecastLists`. `index.html` loads it at startup
+only outside Telegram (`LISTS_ON`). The UI for it (account button and sheet,
++ / − n + and bookmark controls on cards, the detail view, scan results and
+My cars rows, Owned / Wanted pills, My cars screen) is the
+"My collection & wishlist" part of the script, just before the boot code. See
+[my-collection.md](my-collection.md).
+
 ### Conventions
 
 - ES5-style JavaScript (`var`, function declarations) to match the existing
@@ -64,8 +72,10 @@ is loaded only when the scanner opens. See [card-scanner.md](card-scanner.md).
 - Escape any catalog or OCR text with `esc()` before putting it in HTML.
 - Every overlay pushes a history entry and is closed by the `popstate`
   handler, so the phone's back gesture works. New overlays need the same.
-- Layer order (`z-index`): header 10, go-to-top 15, detail 20, bottom sheets
-  30, scanner 35, zoom viewer 40.
+- Layer order (`z-index`): header 10, go-to-top 15, My cars 18, detail 20,
+  bottom sheets 30, scanner 35, zoom viewer 40, toast 45.
+- Anything that belongs to the collection feature must stay off in Telegram:
+  check `LISTS_ON` (or `L`, which is null there).
 
 ## External services and libraries
 
@@ -77,10 +87,19 @@ is loaded only when the scanner opens. See [card-scanner.md](card-scanner.md).
 | findmyhw.com | Car photos | Hotlinked. |
 | wsrv.nl | Image download (JPEG conversion with CORS) | Detail view download button only. |
 | Cloudflare Web Analytics | Visit statistics | Cookieless. |
+| `accounts.google.com/gsi/client` | Google sign-in (collection feature) | Browser only, loaded by `lists.js`. Google doesn't publish versioned builds, so it has no SRI hash. |
+| `www.googleapis.com` (Drive API v3) | Reading/writing the user's lists in their Drive app data folder | Browser only, scope `drive.appdata`. |
 
 There is no Content-Security-Policy. If you add one, it has to allow the hosts
 above (scripts, images, `fetch`), WebAssembly (`'wasm-unsafe-eval'`), and the
-ONNX Runtime worker that loads from jsDelivr. Test the scanner after adding it.
+ONNX Runtime worker that loads from jsDelivr. For sign-in it also needs
+`accounts.google.com` in `script-src`, `frame-src` and `connect-src`, and
+`www.googleapis.com` in `connect-src`. Test the scanner and sign-in after
+adding it.
+
+Google sign-in only works on origins listed in the OAuth client
+(`https://danyjoy.github.io`, `http://localhost:8000`). For a tunnel URL, add
+it there first (see [my-collection.md](my-collection.md)).
 
 ## Updating the OCR models
 

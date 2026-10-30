@@ -17,6 +17,10 @@ Live site (GitHub Pages): **https://danyjoy.github.io/diecastDb/**
 - **Scan a card**: point the phone at a blister card. The app reads the car
   name on the device, matches it against every year and collection, and ranks
   the colour variants by the car's colour in the photo. Nothing is uploaded.
+- **My collection & wishlist** (website only): sign in with Google and mark
+  cars as owned (with the number of copies) or wanted. The lists are saved in your own Google
+  Drive (a hidden app folder), not on any server of ours. The Telegram Mini
+  App stays browse-only.
 - **Weekly data refresh**: a GitHub Action re-scrapes the current and next
   year every Monday and commits any changes.
 
@@ -26,6 +30,8 @@ Live site (GitHub Pages): **https://danyjoy.github.io/diecastDb/**
 |---|---|
 | Browsing features and Telegram integration | [docs/features.md](docs/features.md) |
 | Card scanner: how to use it and how it works | [docs/card-scanner.md](docs/card-scanner.md) |
+| My collection & wishlist, Google Drive sync, Google Cloud setup | [docs/my-collection.md](docs/my-collection.md) |
+| Privacy page (what is stored and where) | [privacy.html](privacy.html) |
 | Data files, manifest and car record format | [docs/data.md](docs/data.md) |
 | Weekly catalog updates (GitHub Action, scraper) | [docs/catalog-updates.md](docs/catalog-updates.md) |
 | Running locally, testing on a phone, code layout | [docs/development.md](docs/development.md) |
@@ -36,6 +42,8 @@ Live site (GitHub Pages): **https://danyjoy.github.io/diecastDb/**
 ```
 index.html                  the whole app (vanilla HTML/CSS/JS, no build step)
 ocr.js                      on-device text reader used by the scanner
+lists.js                    collection & wishlist sync to Google Drive (browser only)
+privacy.html                privacy page (linked from Google's sign-in screen)
 models/                     OCR models (ONNX) + character list
 data/
   index.json                manifest: collections and the years each has
