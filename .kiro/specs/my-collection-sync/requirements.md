@@ -103,7 +103,8 @@ its detail page, so that building my lists is quick.
 2. WHEN the user taps a toggle THEN its state SHALL change right away, and
    the change SHALL be saved to Drive in the background.
 3. WHEN a car is first added to the Collection THEN it SHALL be removed from
-   the Wishlist if it was there.
+   the Wishlist if it was there, and the bookmark SHALL be hidden while the
+   car is owned.
 4. IF the user isn't signed in THEN tapping a toggle SHALL offer to sign in,
    and apply the change once sign-in succeeds.
 5. IF a save fails THEN the app SHALL keep the change in the local cache,

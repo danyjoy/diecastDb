@@ -19,13 +19,16 @@ The spec is in `.kiro/specs/my-collection-sync/`.
 - **Account sheet**: Sign in with Google; once signed in, the sync status,
   **My cars**, **Sync now**, **Export (JSON)**, **Delete my data** and
   **Sign out**. Links to [privacy.html](../privacy.html).
-- **Add / wishlist controls** on every grid card (top-right of the photo),
-  in the car detail view, on card scanner matches and on My cars rows:
+- **Add / wishlist controls** on every grid card (top-right of the photo,
+  side by side: bookmark, then +), in the car detail view, on card scanner
+  matches and on My cars rows. On the white photos they're white; elsewhere
+  they use the dark theme:
   - **+** adds the car to the collection. It then turns into **− n +**, the
     number of copies owned (up to 999). **−** at 1 removes the car.
   - The **bookmark** adds the car to the wishlist or removes it (filled pink
     when on the wishlist). A short message confirms it.
-  - Adding a wishlisted car to the collection takes it off the wishlist.
+  - Adding a wishlisted car to the collection takes it off the wishlist, and
+    the bookmark is hidden while the car is owned.
   - Tapping a control while signed out starts sign-in, then adds the car.
   - Tapping a control never opens the car. Tapping the rest of the card or
     row does.

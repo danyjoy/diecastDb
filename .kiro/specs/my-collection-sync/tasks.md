@@ -90,6 +90,13 @@
   resulting popstate now gets ignored (`SELF_POP`).
   - _Requirements: 5.5_
 
+- [x] 6.9 Polish: grid controls side by side (bookmark, then + in the
+  corner); no bookmark on owned cars; dark-theme controls off the white
+  photo (detail, scanner, My cars), with a solid blue "Add to collection" in
+  the detail view; toast sized to its text, so short messages stay on one
+  line.
+  - _Requirements: 3.1, 3.3_
+
 - [ ] 8. Final manual test pass
   - Run the checks in the design's Testing section on desktop Chrome and
     Safari, a phone over the HTTPS tunnel, and the Telegram Mini App (after

@@ -687,7 +687,18 @@
 
   /* Grid card: top-right of the photo, clear of the rarity badge (top-left). */
   .ownctl.tile { position: absolute; top: 7px; right: 7px; z-index: 2;
-    display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+    display: flex; align-items: center; gap: 6px; }
+  .ownctl.tile .wish { order: -1; } /* bookmark left of +, so + stays in the corner */
+
+  /* Off the white photo (detail view, scan results, My cars): dark controls
+     that match the theme. The grid tile keeps the white ones above. */
+  .ownctl.row .qadd, .ownctl.row .qty, .ownctl.row .wish,
+  .ownctl.full .qadd, .ownctl.full .qty, .ownctl.full .wish {
+    background: var(--card2); border-color: var(--border); color: var(--accent); box-shadow: none;
+  }
+  .ownctl.row .qty, .ownctl.full .qty { border-color: var(--accent); }
+  .ownctl.full .qadd { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ownctl.row .wish.on, .ownctl.full .wish.on { color: var(--want); border-color: var(--want); }
   /* Scan results and My cars rows. */
   .ownctl.row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
   /* Detail view: full-width row with labels. */
@@ -712,7 +723,7 @@
 
   .toast {
     position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 45;
-    transform: translateX(-50%); max-width: calc(100% - 32px);
+    transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); text-align: center;
     background: #2a2d35; color: #fff; padding: 10px 16px; border-radius: 12px; font-size: 14px;
     box-shadow: 0 6px 18px rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .2s ease;
   }
@@ -3262,6 +3273,8 @@
         "</span>"
       : '<button type="button" class="qadd" data-own="inc" aria-label="Add to my collection" title="Add to my collection">' +
           PLUS_SVG + (det ? "Add to collection" : "") + "</button>";
+    // Once a car is owned, the wishlist doesn't apply, so no bookmark.
+    if (q) return add;
     var wl = w ? "Remove from wishlist" : "Add to wishlist";
     var wish = '<button type="button" class="wish' + (w ? " on" : "") + '" data-own="wish" aria-pressed="' + w +
                '" aria-label="' + wl + '" title="' + wl + '">' + BOOKMARK_SVG +
