@@ -38,11 +38,12 @@
     state machine plus `change` events, `exportJSON`, and `deleteAll`.
   - _Requirements: 3.5, 6.1, 6.2, 6.3, 7.1_
 
-- [ ] 5. Checkpoint: test `lists.js` against real Google Drive
+- [x] 5. Checkpoint: test `lists.js` against real Google Drive
   - Done so far: the sync logic was tested against a fake Drive with two
     devices (sign-in, add/remove, cross-device removal, unreadable file never
     overwritten, delete, sign-out). The UI was checked in headless Chrome,
-    browser and Telegram modes. Still to do: a real Google sign-in.
+    browser and Telegram modes. Real Google sign-in and save to Drive confirmed
+    by the repo owner on localhost.
   - On localhost, sign in, toggle a few ids, inspect the file through the
     Drive API, and sync between two browser profiles. Ask the user if
     anything is unclear.
