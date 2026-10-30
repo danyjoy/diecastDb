@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
+<title>Privacy · Hot Wheels Catalog Browser</title>
+<meta name="description" content="What the Hot Wheels Catalog Browser stores, where, and how to delete it." />
+<style>
+  :root { --bg: #000; --text: #fff; --hint: #8a8f98; --card: #15171c; --border: #22252d; --accent: #2f8fff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 18px 48px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  header img { height: 34px; }
+  h1 { font-size: 26px; margin: 0; }
+  h2 { font-size: 18px; margin: 28px 0 8px; }
+  p, li { color: #d5d8de; }
+  .muted { color: var(--hint); font-size: 14px; }
+  a { color: var(--accent); }
+  .box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; }
+  code { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="./logo-header.svg" alt="" />
+    <h1>Privacy</h1>
+  </header>
+  <p class="muted">Hot Wheels Catalog Browser (diecastDb) · Last updated 30 October 2026</p>
+
+  <div class="box">
+    <p><strong>In short:</strong> this site has no server and no database. If you sign in with
+    Google, your collection and wishlist are saved in your own Google Drive, in a hidden
+    folder that only this app can open. We never receive or see your data.</p>
+  </div>
+
+  <h2>Browsing</h2>
+  <p>You can browse the catalog and use the card scanner without signing in. The scanner reads
+  the photo on your device; the photo isn't uploaded. The site uses Cloudflare Web Analytics,
+  which counts visits without cookies.</p>
+
+  <h2>Signing in with Google</h2>
+  <p>Sign-in is optional and only used for your collection and wishlist. The site asks Google
+  for one permission, <code>drive.appdata</code>: "See, create, and delete its own configuration
+  data in your Google Drive". With it, the site can only use its own hidden app folder.
+  It can't see, open or change any other file in your Drive.</p>
+  <p>To show who is signed in, the site reads your name and email address from Google Drive. They are
+  kept in your browser only.</p>
+
+  <h2>What is stored</h2>
+  <ul>
+    <li><strong>In your Google Drive</strong> (hidden app folder): one file,
+      <code>diecastdb-lists.json</code>, with the cars in your collection and wishlist. For each car
+      it holds the catalog id, year, collection, name and the time you added it.</li>
+    <li><strong>In your browser</strong> (local storage): a copy of that list, your name and email,
+      so the lists show right away and changes made offline aren't lost. The Google access
+      token is kept only for the current tab session and expires within an hour.</li>
+  </ul>
+  <p>Nothing is sent to any server other than Google's. The data is not shared, sold or used for
+  advertising.</p>
+
+  <h2>Telegram</h2>
+  <p>The Telegram Mini App version is browse-only. It has no sign-in and doesn't store a
+  collection or wishlist.</p>
+
+  <h2>Deleting your data</h2>
+  <ul>
+    <li>In the app, tap the account button, then <strong>Delete my data</strong>. This removes the file
+      from your Drive and the copy in your browser.</li>
+    <li>Or, in Google Drive on the web: <strong>Settings → Manage apps → diecastDb → Options →
+      Delete hidden app data</strong>.</li>
+    <li>To remove the app's access, go to
+      <a href="https://myaccount.google.com/connections" rel="noopener">myaccount.google.com/connections</a>.
+      <strong>Sign out</strong> in the app also revokes access and clears the copy in your browser.</li>
+  </ul>
+  <p>You can download your lists at any time with <strong>Export (JSON)</strong>.</p>
+
+  <h2>Contact</h2>
+  <p>Questions or requests: open an issue on the
+  <a href="https://github.com/danyjoy/diecastDb/issues" rel="noopener">GitHub repository</a>.</p>
+
+  <p class="muted"><a href="./">← Back to the catalog</a></p>
+</main>
+</body>
+</html>

@@ -15,9 +15,10 @@ glue, and the sync logic can be read and tested on its own.
 - `lists.js` and the Google script are never loaded, and no request goes to
   Google.
 - The account button, the detail toggles, the grid markers, the Owned/Wanted
-  pills and the My cars overlay are never added to the page. Every UI hook
-  below starts with `if (!LISTS_ON) return;` or checks `LISTS_ON` before
-  adding markup.
+  pills and the My cars overlay never appear. The account button, sheet and
+  overlay markup are static but `hidden`/closed, and only `loadLists()`
+  unhides the button. The toggles, markers and pills are built only when
+  `LISTS_ON` is true or `L` (DiecastLists) is loaded.
 - The app behaves exactly as it does today.
 
 When `LISTS_ON` is true, `index.html` adds a `<script src="./lists.js">` tag
@@ -130,8 +131,8 @@ folder:
 
 | Key | Value |
 |---|---|
-| `dl.lists` | The last-known document (JSON above). |
-| `dl.pending` | Ordered list of ops not yet saved: `{op: "add"\|"remove", list, id, y, a, t, at}`. |
+| `dl.lists` | The local document, with local changes already applied. |
+| `dl.dirty` | `"1"` when local changes aren't in Drive yet. The timestamps and tombstones in the document carry the changes, so no separate op list is needed. |
 | `dl.hint` | Google email, used as the GIS login hint. Not a secret. |
 
 The cache is cleared on sign-out.
@@ -139,16 +140,16 @@ The cache is cleared on sign-out.
 ## Sync algorithm
 
 ```
-save():                         // queued; only one runs at a time
-  if no pending ops: return
+sync():                         // single-flight; re-runs if changes arrive meanwhile
   state = "syncing"
-  remote = drive.read()         // null if there's no file yet
-  if remote unparseable: state = "error"; stop (never overwrite)
-  doc = merge(remote || empty, local)
-  apply pending ops to doc (add: put entry, delete tombstone;
-                            remove: delete entry, add tombstone)
-  drive.write(doc)
-  local = doc; pending = []; state = "synced"
+  remote = merge of every diecastdb-lists.json in appDataFolder (null if none)
+  if any remote file unparseable: state = "error"; stop (never overwrite)
+  if not dirty: local = remote || empty          // Drive is newer; nothing to upload
+  else:
+    out = merge(remote || empty, local)          // local holds the changes + tombstones
+    write out (create on first save); delete duplicate files
+    local = out; dirty = false (unless changed during the write)
+  state = dirty ? "unsynced" : "synced"
 
 merge(a, b):                    // used on start, on visibility change, and in save
   for each list, for each id in a ∪ b:
@@ -196,7 +197,11 @@ DiecastLists.syncNow()
 DiecastLists.exportJSON()              // -> Blob
 DiecastLists.deleteAll()               // removes the Drive file and the cache
 DiecastLists.user()                    // -> {name, email, photo} | null
-DiecastLists.state()                   // "signed-out" | "synced" | "syncing" | "offline" | "error"
+DiecastLists.state()                   // "signed-out" | "synced" | "syncing" | "unsynced" (local changes not saved)
+                                       // | "stale" (no token this visit, nothing to upload) | "error"
+DiecastLists.message()                 // detail for the state (offline, token expired, …)
+DiecastLists.hasUnsaved()              // local changes not yet in Drive (asked before sign-out)
+DiecastLists.prepare()                 // preload Google's script so a later tap can open the popup
 DiecastLists.on("change", fn)          // fired when the lists or the sync state change
 ```
 
@@ -208,7 +213,8 @@ then schedules `save()`. If the user is signed out, it calls
 
 None of this is added in Telegram mode (`LISTS_ON` is false).
 
-- **Header:** an account button in `.titlebar`, on the right. Signed out it
+- **Header:** an account button to the right of the search box (in the
+  title row, it pushed the year below the title on phones). Signed out it
   shows a person icon. Signed in it shows the user's initial or photo. A
   small dot shows the sync state (amber when unsynced, red on error).
 - **Account sheet** (a bottom sheet, z-index 30, reusing the `.sheet`
@@ -241,8 +247,9 @@ None of this is added in Telegram mode (`LISTS_ON` is false).
   and `showDetail(car)` (pushing a history entry, since My cars stays open
   underneath).
 - **History / back:** opening My cars pushes `{ mycars: true }`. The
-  `popstate` order becomes zoom → scanner → detail → account sheet →
-  My cars. (Telegram's BackButton isn't involved, because none of this
+  `popstate` order becomes zoom → scanner → detail → My cars. The account
+  sheet works like the existing series/year sheets (backdrop, ✕, Esc) and
+  doesn't push history. (Telegram's BackButton isn't involved, because none of this
   exists in Telegram mode.)
 - **Layer order** (update docs/development.md): header 10, go-to-top 15,
   My cars 18, detail 20, sheets 30, scanner 35, zoom 40.

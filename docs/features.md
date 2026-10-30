@@ -77,6 +77,16 @@ The same page runs inside Telegram. When it detects a real Telegram launch
 
 Outside Telegram it behaves as a normal web page.
 
+The Mini App is browse-only: the collection & wishlist feature (Google
+sign-in, Have it / Want it, My cars) is turned off and its code isn't loaded.
+
+## My collection & wishlist
+
+Website only. Sign in with Google to mark cars as *Have it* or *Want it*,
+see markers and Owned / Wanted filters in the grid, and review everything on
+the My cars screen. The lists are saved in your own Google Drive. See
+[my-collection.md](my-collection.md).
+
 ## Analytics
 
 The page loads Cloudflare Web Analytics (cookieless) at the end of
