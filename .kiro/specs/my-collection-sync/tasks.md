@@ -12,17 +12,17 @@
   - [ ] 2.1 Module skeleton `window.DiecastLists`, ES5 style, an event
     emitter (`on("change")`), constants (`GOOGLE_CLIENT_ID`, file name,
     scope).
-    - _Requirements: 2.5_
+    - _Requirements: 2.4_
   - [ ] 2.2 Document helpers: `emptyDoc`, `validateDoc` (id/year/key
     patterns, version check), `merge(a, b)` with tombstones and 90-day
     tombstone pruning.
-    - _Requirements: 2.5, 2.6, 6.1, 6.2_
-  - [ ] 2.3 localStorage cache (`dl.lists`, `dl.pending`, `dl.provider`,
-    `dl.hint`), plus `has`, `entries`, `counts`, and `toggle` with the rule
-    that Have it removes from Wishlist.
+    - _Requirements: 2.4, 2.5, 6.1, 6.2_
+  - [ ] 2.3 localStorage cache (`dl.lists`, `dl.pending`, `dl.hint`), plus
+    `has`, `entries`, `counts`, and `toggle` with the rule that Have it
+    removes from Wishlist.
     - _Requirements: 3.2, 3.3, 3.5_
 
-- [ ] 3. Google provider
+- [ ] 3. Google sign-in and Drive storage
   - [ ] 3.1 Load the GIS script on demand, create the token client,
     `ensureToken(interactive)`, mirror the token to sessionStorage,
     `signIn`, and `signOut` with revoke and cache clearing.
@@ -32,50 +32,46 @@
     network errors to states.
     - _Requirements: 1.3, 2.1, 2.2, 2.3, 7.1_
 
-- [ ] 4. Telegram CloudStorage provider
-  - Check the current limits on core.telegram.org/bots/webapps. Write the
-    `l_0..l_n` chunks with `l_meta` last, read them back, clean up leftover
-    chunks, and fall back to local-only on clients older than Bot API 6.9.
-  - _Requirements: 2.4_
-
-- [ ] 5. Sync engine
+- [ ] 4. Sync engine
   - A single-flight `save()` (read → merge → apply ops → write), an 800 ms
     debounce, pull on init / `visibilitychange` / `online`, `syncNow`, the
     state machine plus `change` events, `exportJSON`, and `deleteAll`.
   - _Requirements: 3.5, 6.1, 6.2, 6.3, 7.1_
 
-- [ ] 6. Checkpoint: test `lists.js` in the browser console
+- [ ] 5. Checkpoint: test `lists.js` in the browser console
   - On localhost, sign in, toggle a few ids, inspect the file through the
     Drive API, and sync between two browser profiles. Ask the user if
     anything is unclear.
 
-- [ ] 7. UI in `index.html`
-  - [ ] 7.1 Load `lists.js`, call `init` after the Telegram setup, and
-    re-render the grid, detail and menu on `change`.
-    - _Requirements: 1.8_
-  - [ ] 7.2 Header account button with a sync dot, and the account bottom
-    sheet (signed-out, signed-in and Telegram variants, all actions, a
-    confirm before Delete my data). Close it on back.
+- [ ] 6. UI in `index.html` (browser mode only)
+  - [ ] 6.1 Add the `LISTS_ON = !isTelegram` flag. Only when it's true,
+    inject `lists.js`, call `init`, and re-render the grid, detail and menu
+    on `change`. In Telegram mode, nothing is loaded or added.
+    - _Requirements: 0.1, 0.2, 0.3, 1.8_
+  - [ ] 6.2 Header account button with a sync dot, and the account bottom
+    sheet (signed-out and signed-in variants, all actions, a confirm before
+    Delete my data). Close it on back.
     - _Requirements: 1.1, 1.3, 1.7, 6.3, 7.1_
-  - [ ] 7.3 Have it / Want it toggles in `showDetail`, with `aria-pressed`
-    and haptic feedback in Telegram.
+  - [ ] 6.3 Have it / Want it toggles in `showDetail`, with `aria-pressed`.
     - _Requirements: 3.1, 3.2, 3.3, 3.4_
-  - [ ] 7.4 Owned/wanted markers on grid cards, and Owned / Wanted filter
+  - [ ] 6.4 Owned/wanted markers on grid cards, and Owned / Wanted filter
     pills joined to `matches()`.
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
-  - [ ] 7.5 The My cars overlay (z-index 18): tabs with counts, search, rows,
+  - [ ] 6.5 The My cars overlay (z-index 18): tabs with counts, search, rows,
     the "not in catalog" state, open-car handoff via `loadCollection`, the
-    history entry, the popstate order, and Telegram's BackButton.
+    history entry, and the popstate order.
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6_
 
-- [ ] 8. `privacy.html` and docs
+- [ ] 7. `privacy.html` and docs
   - Privacy page in the app's style. New `docs/my-collection.md` (feature
-    overview + Google Cloud setup). Update `README.md` (features + docs
-    table), `docs/development.md` (layer order, external services, CSP
-    hosts, `lists.js` in the code layout), and `docs/features.md`.
-  - _Requirements: 7.2, 7.3_
+    overview, browser-only note, Google Cloud setup). Update `README.md`
+    (features + docs table), `docs/development.md` (layer order, external
+    services, CSP hosts, `lists.js` in the code layout), and
+    `docs/features.md` (Telegram section: collection features are off in the
+    Mini App).
+  - _Requirements: 0.1, 7.2, 7.3_
 
-- [ ] 9. Final manual test pass
+- [ ] 8. Final manual test pass
   - Run the checks in the design's Testing section on desktop Chrome and
-    Safari, a phone over the HTTPS tunnel, and Telegram (after deploying
-    from the branch preview or main).
+    Safari, a phone over the HTTPS tunnel, and the Telegram Mini App (after
+    deploying) to confirm it's still browse-only.

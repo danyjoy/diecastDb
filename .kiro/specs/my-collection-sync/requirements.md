@@ -1,31 +1,48 @@
-# Requirements: My Collection & Wishlist (synced to the user's own account)
+# Requirements: My Collection & Wishlist (synced to the user's own Google Drive)
 
 ## Introduction
 
-Users can sign in with Google and mark cars as **owned** (My Collection) or
-**wanted** (Wishlist). The app has no server and keeps no user data. The
-lists are saved in the user's own Google Drive, in the hidden
-**app data folder** (`appDataFolder`). Only this app can read that folder;
-it doesn't show up in the user's Drive file list and doesn't touch their other
-files. The OAuth scope is `drive.appdata`, which Google lists as
+In a normal web browser, users can sign in with Google and mark cars as
+**owned** (My Collection) or **wanted** (Wishlist). The app has no server and
+keeps no user data. The lists are saved in the user's own Google Drive, in
+the hidden **app data folder** (`appDataFolder`). Only this app can read that
+folder; it doesn't show up in the user's Drive file list and doesn't touch
+their other files. The OAuth scope is `drive.appdata`, which Google lists as
 non-sensitive, so the app doesn't need Google's security review.
 
-Google blocks OAuth sign-in inside embedded web views, and that includes the
-Telegram Mini App. Inside Telegram, the lists are saved in the user's own
-**Telegram Cloud Storage** (`Telegram.WebApp.CloudStorage`) instead. That data
-is also tied to the user's account, and we never see it.
+Inside the **Telegram Mini App**, the app stays browse-only. It has no
+sign-in and no collection features, and looks and behaves exactly as it does
+today. (Google blocks OAuth sign-in inside embedded web views such as
+Telegram's anyway.)
 
 ### Glossary
 
 - **List**: either *Collection* (cars the user owns) or *Wishlist* (cars the
   user wants).
 - **Entry**: one car in a list, keyed by the catalog car `id` (e.g. `JBB06_1`).
-- **Storage provider**: where the lists are saved. Either *Google Drive*
-  (`appDataFolder`) or *Telegram Cloud Storage*.
+- **Browser mode**: the app opened in a normal web browser (the existing
+  Telegram check, non-empty `Telegram.WebApp.initData`, is false).
+- **Telegram mode**: the app opened as a Telegram Mini App (that check is
+  true).
 - **Local cache**: a copy of the lists in the browser's `localStorage`, used
   to show them right away and to queue changes made while offline.
 
 ## Requirements
+
+### Requirement 0: Browser only
+
+**User story:** As the app owner, I want the collection features only on the
+website, so that the Telegram Mini App stays a simple catalog browser.
+
+**Acceptance criteria**
+
+1. WHEN the app runs in Telegram mode THEN it SHALL NOT show the account
+   button, the Have it / Want it toggles, the owned/wanted markers, the
+   Owned / Wanted filters or the My cars screen.
+2. WHEN the app runs in Telegram mode THEN it SHALL NOT load the Google
+   sign-in script, the collection code, or make any request to Google.
+3. WHEN the app runs in browser mode THEN all the features below SHALL be
+   available.
 
 ### Requirement 1: Sign in with Google
 
@@ -34,7 +51,7 @@ Google account, so that my collection is saved somewhere I control.
 
 **Acceptance criteria**
 
-1. WHEN the app runs in a normal browser THEN the header SHALL show an
+1. WHEN the app runs in browser mode THEN the header SHALL show an
    account button that opens a "Sign in with Google" option.
 2. WHEN the user signs in THEN the app SHALL request only the
    `https://www.googleapis.com/auth/drive.appdata` scope.
@@ -52,7 +69,7 @@ Google account, so that my collection is saved somewhere I control.
    the local cache, and return to the signed-out state.
 8. The app SHALL keep working as it does today for users who never sign in.
 
-### Requirement 2: Storage in the user's account
+### Requirement 2: Storage in the user's Google Drive
 
 **User story:** As a collector, I want my lists stored in my own account
 and not on someone else's server, so that my data stays private and stays
@@ -60,16 +77,14 @@ mine.
 
 **Acceptance criteria**
 
-1. WHEN signed in with Google THEN the app SHALL store the lists in a single
-   JSON file, `diecastdb-lists.json`, in the user's Drive `appDataFolder`.
+1. WHEN signed in THEN the app SHALL store the lists in a single JSON file,
+   `diecastdb-lists.json`, in the user's Drive `appDataFolder`.
 2. IF that file doesn't exist THEN the app SHALL create it on the first save.
 3. The app SHALL talk only to Google's APIs directly from the browser. No
    other server SHALL receive list data.
-4. WHEN running inside Telegram THEN the app SHALL store the lists in
-   Telegram Cloud Storage without needing a Google sign-in.
-5. The stored format SHALL carry a `version` number so it can change later
+4. The stored format SHALL carry a `version` number so it can change later
    without losing data.
-6. IF the stored file can't be parsed THEN the app SHALL NOT overwrite it.
+5. IF the stored file can't be parsed THEN the app SHALL NOT overwrite it.
    It SHALL tell the user and stop syncing.
 
 ### Requirement 3: Mark a car as owned or wanted
@@ -79,14 +94,14 @@ its detail page, so that building my lists is quick.
 
 **Acceptance criteria**
 
-1. WHEN the detail view is open THEN it SHALL show two toggles: **Have it**
-   and **Want it**.
+1. WHEN the detail view is open in browser mode THEN it SHALL show two
+   toggles: **Have it** and **Want it**.
 2. WHEN the user taps a toggle THEN its state SHALL change right away, and
-   the change SHALL be saved to the storage provider in the background.
+   the change SHALL be saved to Drive in the background.
 3. WHEN a car is marked *Have it* THEN it SHALL be removed from the Wishlist
    if it was there.
-4. IF the user isn't signed in and isn't in Telegram THEN tapping a toggle
-   SHALL offer to sign in, and apply the change once sign-in succeeds.
+4. IF the user isn't signed in THEN tapping a toggle SHALL offer to sign in,
+   and apply the change once sign-in succeeds.
 5. IF a save fails THEN the app SHALL keep the change in the local cache,
    show that it isn't synced yet, and retry on the next change, the next app
    start, or a manual "Sync now".
@@ -150,8 +165,7 @@ lives, so that I trust the feature.
 **Acceptance criteria**
 
 1. The account menu SHALL offer **Export** (download the lists as JSON) and
-   **Delete my data** (delete the stored file / Telegram keys after
-   confirmation).
+   **Delete my data** (delete the Drive file after confirmation).
 2. The repository SHALL include a privacy page (`privacy.html`) describing
    what is stored, where, and how to remove it. Google's OAuth consent screen
    needs this link.
@@ -160,10 +174,9 @@ lives, so that I trust the feature.
 
 ## Out of scope
 
+- Any collection, wishlist or sign-in feature inside the Telegram Mini App.
 - Any server, database or account system of our own.
 - Sign-in with Apple, Microsoft, or other providers.
 - Sharing lists with other people or public profile pages.
 - Quantities, prices, purchase dates or notes per car (the format leaves room
   for them later).
-- Moving lists between Google Drive and Telegram Cloud Storage automatically.
-  Export covers that by hand.

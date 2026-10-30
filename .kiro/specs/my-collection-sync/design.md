@@ -6,10 +6,24 @@ Everything stays client-side, in keeping with the rest of the app: plain
 ES5-style JavaScript, no build step, hosted on GitHub Pages. The new code goes
 into a new file, **`lists.js`**, which exposes `window.DiecastLists`. Keeping
 it separate means `index.html` (already about 3,000 lines) only gains the UI
-glue, and the sync logic can be read and tested on its own. `index.html`
-loads `lists.js` with a normal `<script defer>`, because the grid needs the
-owned/wanted markers on first render. `ocr.js` is different: it only loads
-when the scanner opens.
+glue, and the sync logic can be read and tested on its own.
+
+**Browser only.** The feature is turned on by one flag, `LISTS_ON =
+!isTelegram`, computed right after the existing Telegram check. When
+`LISTS_ON` is false (Telegram Mini App):
+
+- `lists.js` and the Google script are never loaded, and no request goes to
+  Google.
+- The account button, the detail toggles, the grid markers, the Owned/Wanted
+  pills and the My cars overlay are never added to the page. Every UI hook
+  below starts with `if (!LISTS_ON) return;` or checks `LISTS_ON` before
+  adding markup.
+- The app behaves exactly as it does today.
+
+When `LISTS_ON` is true, `index.html` adds a `<script src="./lists.js">` tag
+at startup, the same way it loads Lottie. On `load` it calls
+`DiecastLists.init()`. The first `change` event re-renders the grid with the
+owned/wanted markers, so the catalog never waits for the lists to load.
 
 ```mermaid
 flowchart LR
@@ -17,25 +31,26 @@ flowchart LR
   L["lists.js<br/>DiecastLists"]
   C[("localStorage<br/>cache + pending ops")]
   G["Google Drive v3<br/>appDataFolder"]
-  T["Telegram CloudStorage"]
   GIS["Google Identity Services<br/>token client"]
-  UI <--> L
+  TG["Telegram Mini App"]
+  UI -- "browser only (LISTS_ON)" --> L
   L <--> C
-  L -- "browser" --> GIS
-  L -- "browser" --> G
-  L -- "Telegram Mini App" --> T
+  L --> GIS
+  L --> G
+  TG -. "browse only, lists.js not loaded" .-> UI
 ```
 
 ## Choosing where to store the data
 
-| Option | Data stays in the user's account | Works on GitHub Pages | Works in Telegram | Notes |
-|---|---|---|---|---|
-| **Drive `appDataFolder`** (chosen for browsers) | Yes | Yes, browser only | No (Google blocks web views) | Non-sensitive scope, so no Google review. Hidden from the user's Drive list and from other apps. |
-| Drive `drive.file` (visible file) | Yes | Yes | No | Users can see and edit the file, and an edit can break it. Needs the Picker to reopen the file on a new device. |
-| Google Sheets | Yes | Yes | No | Sensitive scope, which needs Google verification. |
-| **Telegram CloudStorage** (chosen in Telegram) | Yes (Telegram account) | n/a | Yes | No sign-in. Up to 1,024 keys × 4,096 characters per user. |
-| Firebase / Supabase | No (stored on our project) | Yes | Partly | Breaks the rule that we store nothing. |
-| localStorage only | Device only | Yes | Yes | Lost when the browser data is cleared, and doesn't sync. Used only as a cache. |
+The feature is browser-only, so Telegram storage isn't needed.
+
+| Option | Data stays in the user's account | Works on GitHub Pages | Notes |
+|---|---|---|---|
+| **Drive `appDataFolder`** (chosen) | Yes | Yes | Non-sensitive scope, so no Google review. Hidden from the user's Drive list and from other apps. |
+| Drive `drive.file` (visible file) | Yes | Yes | Users can see and edit the file, and an edit can break it. Needs the Picker to reopen the file on a new device. |
+| Google Sheets | Yes | Yes | Sensitive scope, which needs Google verification. |
+| Firebase / Supabase | No (stored on our project) | Yes | Breaks the rule that we store nothing. |
+| localStorage only | Device only | Yes | Lost when the browser data is cleared, and doesn't sync. Used only as a cache. |
 
 ## Authentication (browser)
 
@@ -79,25 +94,10 @@ flowchart LR
    Redirect URIs aren't needed with the popup token flow.
 4. Put the client ID in `GOOGLE_CLIENT_ID`.
 
-## Telegram provider
-
-- Used when `isTelegram` is true (the existing check that `initData` is
-  non-empty) and `tg.CloudStorage` exists (Bot API 6.9+). In Telegram the
-  account menu shows "Saved to your Telegram account" and has no sign-in.
-- Limits (to re-check against core.telegram.org/bots/webapps during
-  implementation): keys are 1 to 128 characters of `A-Z a-z 0-9 _ -`, values
-  up to 4,096 characters, 1,024 keys per user.
-- Layout: the same JSON document as on Drive, split into 4,000-character
-  chunks under the keys `l_0` … `l_n`, plus `l_meta` = `{"n": <chunks>, "g":
-  <generation>}`. The chunks are written first and `l_meta` last, so a reader
-  never sees a half-written generation. Leftover chunks above `n` are
-  removed afterwards.
-- If Telegram is older than 6.9, the lists only live in the local cache, and
-  the menu says they are saved on this device only.
-
 ## Data model
 
-One document, the same for both providers:
+One JSON document, stored as `diecastdb-lists.json` in the Drive app data
+folder:
 
 ```json
 {
@@ -132,7 +132,6 @@ One document, the same for both providers:
 |---|---|
 | `dl.lists` | The last-known document (JSON above). |
 | `dl.pending` | Ordered list of ops not yet saved: `{op: "add"\|"remove", list, id, y, a, t, at}`. |
-| `dl.provider` | `"google"`, `"telegram"` or absent. |
 | `dl.hint` | Google email, used as the GIS login hint. Not a secret. |
 
 The cache is cleared on sign-out.
@@ -143,12 +142,12 @@ The cache is cleared on sign-out.
 save():                         // queued; only one runs at a time
   if no pending ops: return
   state = "syncing"
-  remote = provider.read()      // null if there's no file yet
+  remote = drive.read()         // null if there's no file yet
   if remote unparseable: state = "error"; stop (never overwrite)
   doc = merge(remote || empty, local)
   apply pending ops to doc (add: put entry, delete tombstone;
                             remove: delete entry, add tombstone)
-  provider.write(doc)
+  drive.write(doc)
   local = doc; pending = []; state = "synced"
 
 merge(a, b):                    // used on start, on visibility change, and in save
@@ -187,7 +186,7 @@ The file id is kept in memory after the first lookup.
 ## `lists.js` public API
 
 ```js
-DiecastLists.init({ isTelegram, tg })  // picks the provider, loads the cache, starts a background pull
+DiecastLists.init()                    // browser mode only: loads the cache, starts a background pull
 DiecastLists.has(list, id)             // -> boolean   (list: "collection" | "wishlist")
 DiecastLists.toggle(list, car)         // must be called from a click; may open the Google popup
 DiecastLists.entries(list)             // -> [{id, y, a, t, at}], newest year first
@@ -195,30 +194,30 @@ DiecastLists.counts()                  // -> {collection, wishlist}
 DiecastLists.signIn() / signOut()
 DiecastLists.syncNow()
 DiecastLists.exportJSON()              // -> Blob
-DiecastLists.deleteAll()               // removes the remote file/keys and the cache
+DiecastLists.deleteAll()               // removes the Drive file and the cache
 DiecastLists.user()                    // -> {name, email, photo} | null
-DiecastLists.state()                   // "signed-out" | "synced" | "syncing" | "offline" | "error" | "local-only"
+DiecastLists.state()                   // "signed-out" | "synced" | "syncing" | "offline" | "error"
 DiecastLists.on("change", fn)          // fired when the lists or the sync state change
 ```
 
 `toggle` updates the cache and fires `change` straight away (optimistic),
-then schedules `save()`. If the user is signed out in a browser, it calls
+then schedules `save()`. If the user is signed out, it calls
 `signIn()` first and only applies the toggle once sign-in succeeds (Req 3.4).
 
 ## UI changes (`index.html`)
+
+None of this is added in Telegram mode (`LISTS_ON` is false).
 
 - **Header:** an account button in `.titlebar`, on the right. Signed out it
   shows a person icon. Signed in it shows the user's initial or photo. A
   small dot shows the sync state (amber when unsynced, red on error).
 - **Account sheet** (a bottom sheet, z-index 30, reusing the `.sheet`
   styles):
-  - Signed out (browser): "Sign in with Google", plus one line explaining
-    that data is saved in your own Google Drive and that we never see it,
-    with a link to the privacy page.
+  - Signed out: "Sign in with Google", plus one line explaining that data
+    is saved in your own Google Drive and that we never see it, with a link
+    to the privacy page.
   - Signed in: name and email, sync state, **My cars**, **Sync now**,
     **Export**, **Delete my data**, **Sign out**.
-  - Telegram: "Saved to your Telegram account", **My cars**, **Export**,
-    **Delete my data**.
 - **Detail view:** a row of two pill toggles under the title/subhead, before
   the specs: **✓ Have it** and **♡ Want it**, with `aria-pressed`. They are
   rebuilt in `showDetail` and refreshed on `change`.
@@ -243,7 +242,8 @@ then schedules `save()`. If the user is signed out in a browser, it calls
   underneath).
 - **History / back:** opening My cars pushes `{ mycars: true }`. The
   `popstate` order becomes zoom → scanner → detail → account sheet →
-  My cars. Telegram's BackButton is wired the same way as for the scanner.
+  My cars. (Telegram's BackButton isn't involved, because none of this
+  exists in Telegram mode.)
 - **Layer order** (update docs/development.md): header 10, go-to-top 15,
   My cars 18, detail 20, sheets 30, scanner 35, zoom 40.
 
@@ -263,20 +263,21 @@ then schedules `save()`. If the user is signed out in a browser, it calls
   `www.googleapis.com`). Update the "External services" table and the CSP
   note in docs/development.md.
 - New `privacy.html`: what is stored (car ids, year, collection, title, time
-  added), where (your Drive app data folder, or your Telegram cloud storage),
-  that we have no server, and how to delete it (Delete my data, or Drive →
-  Settings → Manage apps → diecastDb → Delete hidden app data).
+  added), where (your Drive app data folder), that we have no server, that
+  the Telegram Mini App doesn't use this feature, and how to delete it
+  (Delete my data, or Drive → Settings → Manage apps → diecastDb → Delete
+  hidden app data).
 
 ## Error handling
 
 | Case | Behaviour |
 |---|---|
 | Popup blocked or closed | Toast: "Sign-in was cancelled." The state stays the same. |
+| Site opened in an in-app browser (a link tapped in Telegram chat, Instagram, …) | This counts as browser mode, but Google refuses the sign-in (`disallowed_useragent`). When GIS reports a popup or sign-in failure, the sheet says "Google sign-in doesn't work in in-app browsers. Open the site in Chrome or Safari." |
 | Offline | Ops stay queued, the dot turns amber, retry on the `online` event. |
 | 401 / expired token | Drop the token. The next gesture re-authorises. |
 | 403 (Drive API disabled, quota) | State *error*. The menu shows the message. Ops are kept. |
 | Remote file not valid JSON / unknown version | Stop syncing and don't overwrite. The menu says "Your saved list couldn't be read" and offers Export of the local copy. |
-| Telegram CloudStorage error | Same as offline: queue and retry. |
 
 ## Testing
 
@@ -289,7 +290,9 @@ project's conventions). The checks:
   car shows up. Remove on B, then add something else on A, and the removal
   isn't undone.
 - Offline toggle (DevTools → Offline), then back online: it syncs.
-- Telegram (deployed site): toggles persist across app restarts, with no
-  sign-in prompt.
+- Telegram (deployed site): no account button, toggles, markers, Owned /
+  Wanted pills or My cars. In DevTools / remote debugging, there are no
+  requests to `accounts.google.com` or `googleapis.com`, and `lists.js` isn't
+  fetched. Browsing, the scanner and the detail view work as before.
 - Drive → Manage apps shows "diecastDb" with hidden app data, and Delete
   removes it.
