@@ -81,6 +81,15 @@
     return out;
   }
 
+  // Inference runs on the main thread, so give the browser a frame to paint
+  // (progress bar, captured photo) between the heavy steps.
+  function nextFrame() {
+    return new Promise(function (resolve) {
+      if (root.requestAnimationFrame) root.requestAnimationFrame(function () { setTimeout(resolve, 0); });
+      else setTimeout(resolve, 16);
+    });
+  }
+
   function makeCanvas(w, h) {
     var c = document.createElement("canvas");
     c.width = w; c.height = h;
@@ -240,7 +249,7 @@
       engine.recognize = function (src, onProgress) {
         function report(f) { if (onProgress) { try { onProgress(f); } catch (e) {} } }
         report(0);
-        return detect(engine, src).then(function (boxes) {
+        return nextFrame().then(function () { return detect(engine, src); }).then(function (boxes) {
           var out = [];
           // Skip vertical strips (side-printed text) and run lines one by one
           // to keep peak memory low on phones.
@@ -248,12 +257,13 @@
             return !(Math.abs(b.angle) > Math.PI / 4 || b.h > b.w * 1.5);
           });
           report(0.3);
-          var chain = Promise.resolve();
+          var chain = nextFrame();
           todo.forEach(function (b, i) {
             chain = chain.then(function () { return recognizeBox(engine, src, b); })
               .then(function (r) {
                 if (r.text) out.push({ text: r.text, score: r.score, box: b });
                 report(0.3 + 0.7 * (i + 1) / todo.length);
+                return nextFrame();
               });
           });
           return chain.then(function () { report(1); return out; });

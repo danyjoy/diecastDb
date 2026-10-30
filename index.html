@@ -518,8 +518,22 @@
     -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   }
   .scanprog[hidden] { display: none; }
-  .scanprog .track { height: 6px; border-radius: 999px; background: rgba(255,255,255,.18); overflow: hidden; }
-  .scanprog .bar { height: 100%; width: 0; border-radius: 999px; background: var(--accent); transition: width .2s ease; }
+  .scanprog .track {
+    position: relative; height: 6px; border-radius: 999px; background: rgba(255,255,255,.18); overflow: hidden;
+  }
+  /* Filled with transform (not width) and topped with a moving sheen: both
+     run on the compositor, so they keep animating while the text reader
+     briefly blocks the page. */
+  .scanprog .bar {
+    position: absolute; inset: 0; border-radius: 999px; background: var(--accent);
+    transform-origin: 0 50%; transform: scaleX(0); transition: transform .3s ease;
+  }
+  .scanprog .track::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 40%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+    animation: scansheen 1.1s linear infinite;
+  }
+  @keyframes scansheen { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
   .scanprog .lbl { margin-top: 6px; color: #fff; font-size: 12px; font-weight: 600; }
   .scanstatus {
     position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
@@ -528,8 +542,10 @@
     padding: 7px 12px; border-radius: 10px; pointer-events: none;
   }
   .scanstatus:empty { display: none; }
+  /* Camera: [Photo]  (shutter)  [ ] with the shutter exactly centred.
+     Review: [Photo] [Retake] as two equal buttons. */
   .scanctl {
-    display: flex; align-items: center; justify-content: space-around; gap: 12px;
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
     padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
     background: var(--bg); border-top: 1px solid var(--border);
   }
@@ -538,14 +554,21 @@
     background: var(--card); border: 1px solid var(--border); color: var(--text);
     font-size: 14px; font-weight: 600; padding: 10px 12px; border-radius: 12px; cursor: pointer;
   }
+  .scanctl #scanUpload { justify-self: start; }
   .scanctl .side:active { opacity: .7; }
+  .scanctl .side:disabled { opacity: .4; cursor: default; }
   .scanctl .spacer { min-width: 92px; }
+  .scanner.review .scanctl { grid-template-columns: 1fr 1fr; }
+  .scanner.review .scanctl .spacer { display: none; }
+  .scanner.review .scanctl .side,
+  .scanner.review .scanctl #scanUpload { justify-self: stretch; padding: 12px; }
   .shutter {
     width: 66px; height: 66px; border-radius: 50%; cursor: pointer;
     background: #fff; border: 4px solid var(--accent); box-shadow: 0 0 0 3px #fff inset;
   }
   .shutter:active { transform: scale(.94); }
-  .shutter:disabled { opacity: .4; }
+  .shutter:disabled { opacity: .4; cursor: default; }
+  .shutter:disabled:active { transform: none; }
   .scanres { display: none; flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
     padding: 12px 16px 16px; background: var(--bg); }
   .scanres label { display: block; color: var(--hint); font-size: 12px; margin: 0 0 6px; }
@@ -698,7 +721,7 @@
     </div>
     <div class="scanstage">
       <video id="scanVideo" playsinline muted autoplay></video>
-      <img id="scanSnap" class="snap" alt="" />
+      <canvas id="scanSnap" class="snap" width="1" height="1"></canvas>
       <div class="scanframe"><div class="scanzone"></div></div>
       <div id="scanStatus" class="scanstatus"></div>
       <div id="scanProg" class="scanprog" role="progressbar" aria-live="polite" hidden>
@@ -2075,22 +2098,33 @@
   function setMode(m) { $scanner.className = "scanner open " + m; renderProgress(); }
   function setStatus(t) { $scanStatus.textContent = t || ""; }
 
+  // Resolves after the browser has painted the current state (two frames), so
+  // the captured photo and progress bar show before heavy work blocks it.
+  function waitPaint() {
+    return new Promise(function (resolve) {
+      requestAnimationFrame(function () { requestAnimationFrame(function () { setTimeout(resolve, 0); }); });
+    });
+  }
+
   // One progress bar for both: the download (shown whenever it's running,
   // even while aiming) takes priority, then reading progress during a scan.
+  // The shutter and Photo buttons stay disabled until the download is done.
   function renderProgress() {
-    var label = "", frac = null;
+    var label = "", frac = null, downloading = !!SC.dl;
+    $scanShutter.disabled = downloading;
+    $scanUpload.disabled = downloading;
     if (SC.dl) {
       var mb = function (b) { return (b / 1048576).toFixed(1); };
       frac = SC.dl.total ? SC.dl.loaded / SC.dl.total : 0;
       label = "Downloading text reader (first time only) · " + mb(SC.dl.loaded) + " / " + mb(SC.dl.total) + " MB";
     } else if (SC.read != null && $scanner.classList.contains("busy")) {
       frac = SC.read;
-      label = "Reading card…";
+      label = SC.readLabel || "Reading card…";
     }
     if (frac == null) { $scanProg.hidden = true; return; }
     frac = Math.max(0, Math.min(1, frac));
     $scanProg.hidden = false;
-    $scanProgBar.style.width = (frac * 100).toFixed(1) + "%";
+    $scanProgBar.style.transform = "scaleX(" + frac.toFixed(3) + ")";
     $scanProgLabel.textContent = label + " " + Math.round(frac * 100) + "%";
   }
 
@@ -2139,6 +2173,9 @@
         ort.env.wasm.wasmBinary = bufs[0];  // already downloaded above
         // Multi-threading needs cross-origin isolation, which GitHub Pages lacks.
         ort.env.wasm.numThreads = 1;
+        // Run inference in a background worker so the page (camera preview,
+        // progress bar) keeps updating while a card is read.
+        ort.env.wasm.proxy = true;
         return window.PaddleOCRLite.load({
           ort: ort, detBuf: bufs[1], recBuf: bufs[2],
           dictUrl: OCR_MODELS.dictUrl, charset: OCR_MODELS.charset
@@ -2589,7 +2626,7 @@
 
   function startCamera() {
     var run = ++SC.run;
-    $scanSnap.removeAttribute("src");
+    clearSnap();
     setMode("live");
     setStatus("Fit the whole card in the frame, name in the blue zone");
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { noCamera(); return; }
@@ -2664,11 +2701,12 @@
   // Matches .scanzone in the CSS; read with a little slack above it.
   var NAME_ZONE_TOP = 0.66, NAME_ZONE_SLACK = 0.06;
 
-  // Crop the live video to the on-screen card frame. The video is shown with
-  // object-fit: cover, so map frame coordinates back to video pixels.
-  // Returns { regions, preview }: the enlarged name zone at the bottom of the
-  // card is read first; the whole card is only read if that finds no match.
-  function captureFrame() {
+  // Copy the card frame out of the live video at full resolution. This is a
+  // single quick draw, so the frozen photo can be shown straight away; the
+  // heavier crops for reading are made from it afterwards (liveRegions).
+  // The video is shown with object-fit: cover, so map frame coordinates back
+  // to video pixels.
+  function grabFrame() {
     var vw = $scanVideo.videoWidth, vh = $scanVideo.videoHeight;
     if (!vw || !vh) return null;
     var st = $scanStage.getBoundingClientRect(), fr = $scanFrame.getBoundingClientRect();
@@ -2679,17 +2717,33 @@
     var x1 = Math.min(vw, (fr.right - st.left - ox) / scale);
     var y1 = Math.min(vh, (fr.bottom - st.top - oy) / scale);
     if (x1 - x0 < 10 || y1 - y0 < 10) { x0 = 0; y0 = 0; x1 = vw; y1 = vh; }
-    var w = x1 - x0, h = y1 - y0;
-    var zy = y0 + h * Math.max(0, NAME_ZONE_TOP - NAME_ZONE_SLACK);
-    var card = toCanvas($scanVideo, x0, y0, w, h, 1200);
-    return {
-      preview: card,
-      regions: [
-        enhance(toCanvas($scanVideo, x0, zy, w, y1 - zy, 2000)), // name zone
-        enhance(toCanvas($scanVideo, x0, y0, w, h, 1400))        // whole card
-      ]
-    };
+    var c = document.createElement("canvas");
+    c.width = Math.round(x1 - x0); c.height = Math.round(y1 - y0);
+    c.getContext("2d").drawImage($scanVideo, x0, y0, x1 - x0, y1 - y0, 0, 0, c.width, c.height);
+    return c;
   }
+
+  // Regions to read from a grabbed card: the enlarged name zone at the bottom
+  // first; the whole card only if that finds no match.
+  function liveRegions(card) {
+    var w = card.width, h = card.height;
+    var zy = h * Math.max(0, NAME_ZONE_TOP - NAME_ZONE_SLACK);
+    return [
+      enhance(toCanvas(card, 0, zy, w, h - zy, 2000)), // name zone
+      enhance(toCanvas(card, 0, 0, w, h, 1400))        // whole card
+    ];
+  }
+
+  // Show the captured photo in the camera area (a canvas paints on the next
+  // frame, with no image decoding step).
+  function showSnap(src) {
+    if (!src) return;
+    var s = Math.min(1, 1200 / Math.max(src.width, src.height));
+    $scanSnap.width = Math.max(1, Math.round(src.width * s));
+    $scanSnap.height = Math.max(1, Math.round(src.height * s));
+    $scanSnap.getContext("2d").drawImage(src, 0, 0, $scanSnap.width, $scanSnap.height);
+  }
+  function clearSnap() { $scanSnap.width = 1; $scanSnap.height = 1; }
 
   // A whole photo: read overlapping horizontal strips, enlarged, starting at
   // the bottom (where the name is printed), then the full image last.
@@ -2720,21 +2774,33 @@
   // Read a list of image regions in order (the name strip for live capture;
   // the whole photo then enlarged strips for a picked photo), stopping early
   // once the text gives a confident match.
+  // preview: the captured photo, shown at once. makeRegions(): builds the
+  // images to read; it's heavy, so it runs only after the photo and the
+  // progress bar have been painted.
   // carArea: where the car sits in `preview` (fractions), for colour matching.
-  function runScan(regions, preview, carArea) {
+  function runScan(makeRegions, preview, carArea) {
     var run = ++SC.run;
+    showSnap(preview);
     stopCamera();
-    SC.carColors = preview && carArea ? measureCarColors(preview, carArea) : null;
-    try { $scanSnap.src = (preview || regions[0]).toDataURL("image/jpeg", 0.85); } catch (e) {}
     // The progress bar carries the status while reading.
     SC.read = 0;
+    SC.readLabel = "Preparing photo…";
     setStatus("");
     setMode("busy");
     // text: lines the model is sure of. raw: every line, used if nothing
     // passed (better something to edit than an empty box).
-    var text = "", raw = "";
+    var text = "", raw = "", regions = null;
     function good() { var m = matchCards(text); return m.length && m[0].score >= 0.8; }
-    Promise.all([getEngine(), getIndex()]).then(function (res) {
+    waitPaint().then(function () {
+      if (run !== SC.run) return null;
+      SC.carColors = preview && carArea ? measureCarColors(preview, carArea) : null;
+      regions = makeRegions();
+      SC.read = 0.02;
+      SC.readLabel = "Reading card…";
+      renderProgress();
+      return Promise.all([getEngine(), getIndex()]);
+    }).then(function (res) {
+      if (!res || run !== SC.run) return null;
       var engine = res[0], i = 0;
       function next() {
         if (run !== SC.run) return null;
@@ -2894,7 +2960,8 @@
     stopCamera();
     $scanner.className = "scanner";
     $scanner.setAttribute("aria-hidden", "true");
-    $scanSnap.removeAttribute("src");
+    clearSnap();
+    SC.read = null;
     if (tg && tg.BackButton) {
       tg.BackButton.hide();
       tg.BackButton.offClick(closeScanner);
@@ -2905,23 +2972,26 @@
   $scanBtn.addEventListener("click", openScanner);
   $scanClose.addEventListener("click", function () { closeScanner(); });
   $scanShutter.addEventListener("click", function () {
-    var c = captureFrame();
-    if (!c) { setStatus("Camera is starting…"); return; }
+    if (SC.dl) return; // text reader still downloading (button is disabled too)
+    var card = grabFrame();
+    if (!card) { setStatus("Camera is starting…"); return; }
     if (tg && tg.HapticFeedback) { try { tg.HapticFeedback.impactOccurred("medium"); } catch (e) {} }
-    runScan(c.regions, c.preview, CAR_AREA_LIVE);
+    runScan(function () { return liveRegions(card); }, card, CAR_AREA_LIVE);
   });
   $scanRetake.addEventListener("click", startCamera);
-  $scanUpload.addEventListener("click", function () { $scanFile.click(); });
+  $scanUpload.addEventListener("click", function () { if (!SC.dl) $scanFile.click(); });
   $scanFile.addEventListener("change", function () {
     var f = $scanFile.files && $scanFile.files[0];
     $scanFile.value = "";
     if (!f || !SC.open) return;
     var url = URL.createObjectURL(f), img = new Image();
     img.onload = function () {
-      var regions = photoRegions(img);
       var preview = toCanvas(img, 0, 0, img.naturalWidth, img.naturalHeight, 1200);
-      URL.revokeObjectURL(url);
-      runScan(regions, preview, CAR_AREA_PHOTO);
+      runScan(function () {
+        var regions = photoRegions(img);
+        URL.revokeObjectURL(url);
+        return regions;
+      }, preview, CAR_AREA_PHOTO);
     };
     img.onerror = function () { URL.revokeObjectURL(url); setStatus("Couldn't open that image."); };
     img.src = url;
